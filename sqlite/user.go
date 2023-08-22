@@ -38,7 +38,7 @@ func (u *UserService) Users() ([]*app.User, error) {
 	users := make([]*app.User, 0)
 	for rows.Next() {
 		var u app.User
-		if err := rows.Scan(&u.Id, &u.Name); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name); err != nil {
 			return nil, err
 		}
 		users = append(users, &u)
@@ -68,7 +68,7 @@ func (u *UserService) CreateUser(newUser *app.NewUser) (*app.User, error) {
 	}
 
 	user := &app.User{
-		Id: id,
+		ID: id,
 		NewUser: app.NewUser{
 			Name: newUser.Name,
 		},
@@ -80,7 +80,7 @@ func (u *UserService) CreateUser(newUser *app.NewUser) (*app.User, error) {
 
 func (u *UserService) User(id int) (*app.User, error) {
 	var user app.User
-	if err := u.db.QueryRow("SELECT id, name FROM users WHERE id = ?", id).Scan(&user.Id, &user.Name); err != nil {
+	if err := u.db.QueryRow("SELECT id, name FROM users WHERE id = ?", id).Scan(&user.ID, &user.Name); err != nil {
 		return nil, err
 	}
 	return &user, nil
