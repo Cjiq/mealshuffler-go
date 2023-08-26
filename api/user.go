@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+
 	"nrdev.se/mealshuffler/app"
 )
 
@@ -19,7 +20,7 @@ func NewUserController(userService app.UserService) *UserController {
 func (uc *UserController) GetUsers(c echo.Context) error {
 	users, err := uc.userService.Users()
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Error")
+		return c.String(http.StatusInternalServerError, "Error: "+err.Error())
 	}
 	return c.JSON(http.StatusOK, users)
 }
@@ -27,7 +28,7 @@ func (uc *UserController) GetUsers(c echo.Context) error {
 func (uc *UserController) CreateUser(c echo.Context) error {
 	var newUser app.NewUser
 
-	var json map[string]interface{} = map[string]interface{}{}
+	var json map[string]interface{}
 
 	if err := c.Bind(&json); err != nil {
 		return c.String(http.StatusBadRequest, err.Error())
@@ -38,7 +39,7 @@ func (uc *UserController) CreateUser(c echo.Context) error {
 	newUser.Name = json["name"].(string)
 	user, err := uc.userService.CreateUser(&newUser)
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Error")
+		return c.String(http.StatusInternalServerError, "Error: "+err.Error())
 	}
 	return c.JSON(http.StatusOK, user)
 }

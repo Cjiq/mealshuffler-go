@@ -17,10 +17,10 @@ func NewUserService(db *sql.DB) *UserService {
 }
 
 func (u *UserService) CreateUserTable() error {
-	query := `CREATE TABLE IF NOT EXISTS users (
+	query := `CREATE TABLE IF NOT EXISTS user (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL
-);`
+	);`
 	if _, err := u.db.Exec(query); err != nil {
 		return err
 	}
@@ -29,7 +29,7 @@ func (u *UserService) CreateUserTable() error {
 }
 
 func (u *UserService) Users() ([]*app.User, error) {
-	rows, err := u.db.Query("SELECT id, name FROM users")
+	rows, err := u.db.Query("SELECT id, name FROM user")
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (u *UserService) CreateUser(newUser *app.NewUser) (*app.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	stmt, err := tx.Prepare("INSERT INTO users(name) VALUES(?)")
+	stmt, err := tx.Prepare("INSERT INTO user(name) VALUES(?)")
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,9 @@ func (u *UserService) CreateUser(newUser *app.NewUser) (*app.User, error) {
 	}
 
 	user := &app.User{
-		ID: id,
+		Entity: app.Entity{
+			ID: id,
+		},
 		NewUser: app.NewUser{
 			Name: newUser.Name,
 		},
@@ -80,7 +82,7 @@ func (u *UserService) CreateUser(newUser *app.NewUser) (*app.User, error) {
 
 func (u *UserService) User(id int) (*app.User, error) {
 	var user app.User
-	if err := u.db.QueryRow("SELECT id, name FROM users WHERE id = ?", id).Scan(&user.ID, &user.Name); err != nil {
+	if err := u.db.QueryRow("SELECT id, name FROM user WHERE id = ?", id).Scan(&user.ID, &user.Name); err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -91,7 +93,7 @@ func (u *UserService) DeleteUser(id int) error {
 	if err != nil {
 		return err
 	}
-	stmt, err := tx.Prepare("DELETE FROM users WHERE id = ?")
+	stmt, err := tx.Prepare("DELETE FROM user WHERE id = ?")
 	if err != nil {
 		return err
 	}

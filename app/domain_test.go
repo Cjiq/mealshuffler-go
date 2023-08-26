@@ -1,15 +1,14 @@
-package app_test
+package app
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
-
-	"nrdev.se/mealshuffler/app"
 )
 
 func TestGenerateDays(t *testing.T) {
-	days := app.GenerateDays(2023, 1)
+	days := GenerateDays(2023, 1)
 	if len(days) != 7 {
 		t.Errorf("Expected 7 days, got %d", len(days))
 	}
@@ -57,7 +56,7 @@ func TestGenerateWeeks(t *testing.T) {
 		"52   2023-12-30   Saturday",
 		"52   2023-12-31   Sunday",
 	}
-	weeks := app.GenerateWeeks(seedTime)
+	weeks := GenerateWeeks(seedTime)
 	for i, week := range weeks {
 		for j, day := range week.Days {
 			index := i*7 + j
@@ -68,4 +67,136 @@ func TestGenerateWeeks(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestRecipeCost(t *testing.T) {
+	items := []*Item{
+		{Name: "Item 1", Price: 10, Amount: 10, Unit: "ml"},
+		{Name: "Item 2", Price: 20, Amount: 4, Unit: "msk"},
+		{Name: "Item 3", Price: 30, Amount: 1, Unit: "l"},
+	}
+
+	recipe := Recipe{
+		NewRecipe: NewRecipe{
+			Portions: 4,
+			Items:    items,
+		},
+	}
+	cost := recipe.Cost()
+	if cost != 60 {
+		t.Errorf("Expected cost 60, got %f", cost)
+	}
+}
+
+func TestAlterRecipePortions(t *testing.T) {
+	items := []*Item{
+		{Name: "Item 1", Price: 10, Amount: 10, Unit: "ml"},
+		{Name: "Item 2", Price: 20, Amount: 4, Unit: "msk"},
+		{Name: "Item 3", Price: 30, Amount: 1, Unit: "l"},
+	}
+
+	recipe := &Recipe{
+		NewRecipe: NewRecipe{
+			Portions: 4,
+			Items:    items,
+		},
+	}
+	recipe = recipe.AlterPortions(2)
+	if recipe.Portions != 2 {
+		t.Errorf("Expected portions 2, got %d", recipe.Portions)
+	}
+	if recipe.Items[0].Amount != 5 {
+		t.Errorf("Expected amount 5, got %f", recipe.Items[0].Amount)
+	}
+	if recipe.Items[1].Amount != 2 {
+		t.Errorf("Expected amount 2, got %f", recipe.Items[1].Amount)
+	}
+	if recipe.Items[2].Amount != 0.5 {
+		t.Errorf("Expected amount 0.5, got %f", recipe.Items[2].Amount)
+	}
+}
+
+func TestAlterRecipePortionsEffectOnCost(t *testing.T) {
+	items := []*Item{
+		{Name: "Item 1", Price: 10, Amount: 10, Unit: "ml"},
+		{Name: "Item 2", Price: 20, Amount: 4, Unit: "msk"},
+		{Name: "Item 3", Price: 30, Amount: 1, Unit: "l"},
+	}
+
+	recipe := &Recipe{
+		NewRecipe: NewRecipe{
+			Name:     "Recipe 1",
+			Portions: 4,
+			Items:    items,
+		},
+	}
+	cost := recipe.Cost()
+	if cost != 60 {
+		t.Errorf("Expected cost 60, got %f", cost)
+	}
+	recipe = recipe.AlterPortions(2)
+	cost = recipe.Cost()
+	if cost != 30 {
+		t.Errorf("Expected cost 30, got %f", cost)
+	}
+}
+
+func TestRandomSuggestions(t *testing.T) {
+	probs := []float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7}
+	suggestionCount := 7 * 3
+	var recipes []*Recipe
+
+	for i := 0; i < len(probs); i++ {
+		recipes = append(recipes, &Recipe{
+			NewRecipe: NewRecipe{
+				Name:              fmt.Sprintf("Recipe %d", i),
+				ProbabilityWeight: probs[i],
+			},
+		})
+	}
+	suggestions := suggestnRandomRecipes(recipes, suggestionCount)
+	recCount := map[string]int{}
+	for _, suggestion := range suggestions {
+		recCount[suggestion.Name]++
+	}
+	for _, recipe := range recipes {
+		rc := recCount[recipe.Name]
+		expectedCount := int(math.Round(float64(suggestionCount) * recipe.ProbabilityWeight))
+		// fmt.Printf("%s: %d < %d (%.1f * %.1f) = %t\n", recipe.Name, rc, expectedCount, float64(suggestionCount), recipe.ProbabilityWeight, (rc < expectedCount))
+		if rc > expectedCount {
+			t.Errorf("%s was suggested %d times, expected to be %f * %d = %d", recipe.Name, rc, recipe.ProbabilityWeight, suggestionCount, expectedCount)
+		}
+	}
+
+	// repeatTest := 1000
+	// testResults := map[string]int{}
+	// for i := 0; i < repeatTest; i++ {
+	// 	for i := 0; i < len(probs); i++ {
+	// 		recipies = append(recipies, &Recipe{
+	// 			NewRecipe: NewRecipe{
+	// 				Name:              fmt.Sprintf("Recipe %d", i),
+	// 				ProbabilityWeight: probs[i],
+	// 			},
+	// 		})
+	// 	}
+	// 	suggestions := suggestnRandomRecipes(recipies, suggestionCount)
+	// 	recCount := map[string]int{}
+	// 	for _, suggestion := range suggestions {
+	// 		recCount[suggestion.Name]++
+	// 	}
+	// 	for i, recipe := range recipies {
+	// 		rc := recCount[recipe.Name]
+	// 		expectedCount := int(math.Round(float64(suggestionCount) * recipe.ProbabilityWeight))
+	// 		if rc > expectedCount {
+	// 			testResults[fmt.Sprintf("Recipe %d", i)]++
+	// 		}
+	// 	}
+	// }
+	// for i, recipe := range recipies {
+	// 	expectedCount := int(math.Round(float64(repeatTest) * probs[i]))
+	// 	count := testResults[recipe.Name]
+	// 	if count > expectedCount {
+	// 		t.Errorf("%s was suggested %d times, expected to be %f * %d = %d", recipe.Name, count, probs[i], repeatTest, expectedCount)
+	// 	}
+	// }
 }
