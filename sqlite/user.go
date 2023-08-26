@@ -3,6 +3,8 @@ package sqlite
 import (
 	"database/sql"
 
+	"github.com/google/uuid"
+
 	"nrdev.se/mealshuffler/app"
 )
 
@@ -18,7 +20,7 @@ func NewUserService(db *sql.DB) *UserService {
 
 func (u *UserService) CreateUserTable() error {
 	query := `CREATE TABLE IF NOT EXISTS user (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL
 	);`
 	if _, err := u.db.Exec(query); err != nil {
@@ -48,21 +50,18 @@ func (u *UserService) Users() ([]*app.User, error) {
 }
 
 func (u *UserService) CreateUser(newUser *app.NewUser) (*app.User, error) {
+	id := uuid.New()
 	tx, err := u.db.Begin()
 	if err != nil {
 		return nil, err
 	}
-	stmt, err := tx.Prepare("INSERT INTO user(name) VALUES(?)")
+	stmt, err := tx.Prepare("INSERT INTO user(name, id) VALUES(?,?)")
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
-	res, err := stmt.Exec(newUser.Name)
-	if err != nil {
-		return nil, err
-	}
-	id, err := res.LastInsertId()
+	_, err = stmt.Exec(newUser.Name, id.String())
 	if err != nil {
 		return nil, err
 	}

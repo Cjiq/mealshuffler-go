@@ -3,6 +3,8 @@ package sqlite
 import (
 	"database/sql"
 
+	"github.com/google/uuid"
+
 	"nrdev.se/mealshuffler/app"
 )
 
@@ -12,28 +14,31 @@ type RecipeService struct {
 
 func NewRecipeService(db *sql.DB) *RecipeService {
 	us := &RecipeService{db: db}
-	us.CreateRecipeTable()
+	err := us.CreateRecipeTable()
+	if err != nil {
+		panic(err)
+	}
 	return &RecipeService{db: db}
 }
 
 func (u *RecipeService) CreateRecipeTable() error {
 	query := `CREATE TABLE IF NOT EXISTS recipe (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
 		probability_weight REAL NOT NULL,
-		portions INTEGER NOT NULL
-		user_id INTEGER NOT NULL
+		portions INTEGER NOT NULL,
+		user_id TEXT
 	);`
 	if _, err := u.db.Exec(query); err != nil {
 		return err
 	}
 
 	query = `CREATE TABLE IF NOT EXISTS recipes_items (
-		recipe_id INTEGER,
-		item_id INTEGER,
-	};
-	CREATE INDEX idx_recipe_item ON recipes_items (recipe_id, item_id);
-	CREATE INDEX idx_item ON recipes_items (item_id);
+		recipe_id TEXT,
+		item_id TEXT
+	);
+	CREATE INDEX IF NOT EXISTS idx_recipe_item ON recipes_items (recipe_id, item_id);
+	CREATE INDEX IF NOT EXISTS idx_item ON recipes_items (item_id);
 	`
 	if _, err := u.db.Exec(query); err != nil {
 		return err
@@ -44,9 +49,9 @@ func (u *RecipeService) CreateRecipeTable() error {
 
 // Recipes returns all recipes that are not owned by a user
 func (u *RecipeService) Recipes() ([]*app.Recipe, error) {
-	rows, err := u.db.Query(`SELECT id, name 
-	FROM recepis
-	WHERE user_id = null
+	rows, err := u.db.Query(`SELECT id, name, probability_weight, portions
+	FROM recipe
+	WHERE user_id is null OR user_id = ''
 	`)
 	if err != nil {
 		return nil, err
@@ -56,7 +61,7 @@ func (u *RecipeService) Recipes() ([]*app.Recipe, error) {
 	recepis := make([]*app.Recipe, 0)
 	for rows.Next() {
 		var r app.Recipe
-		if err := rows.Scan(&r.ID, &r.Name); err != nil {
+		if err := rows.Scan(&r.ID, &r.Name, &r.ProbabilityWeight, &r.Portions); err != nil {
 			return nil, err
 		}
 		recepis = append(recepis, &r)
@@ -66,30 +71,28 @@ func (u *RecipeService) Recipes() ([]*app.Recipe, error) {
 }
 
 func (u *RecipeService) CreateRecipe(newRecipe *app.NewRecipe) (*app.Recipe, error) {
+	id := uuid.New()
 	tx, err := u.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 	stmt, err := tx.Prepare(`INSERT INTO 
-	recipes(
-		name, probability_weight, portions, created_at, updated_at
+	recipe(
+		id, name, probability_weight, portions
 	)
-	VALUES(?, ?, ?, datetime('now'), datetime('now'))
+	VALUES(?, ?, ?, ?)
 	`)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
-	res, err := stmt.Exec(
+	_, err = stmt.Exec(
+		id.String(),
 		newRecipe.Name,
 		newRecipe.ProbabilityWeight,
 		newRecipe.Portions,
 	)
-	if err != nil {
-		return nil, err
-	}
-	id, err := res.LastInsertId()
 	if err != nil {
 		return nil, err
 	}

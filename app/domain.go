@@ -5,11 +5,12 @@ import (
 	"sort"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/snabb/isoweek"
 )
 
 type Entity struct {
-	ID int64 `json:"id,omitempty"`
+	ID uuid.UUID `json:"id,omitempty"`
 }
 
 type NewUser struct {
@@ -50,8 +51,13 @@ type Week struct {
 type Day struct {
 	Date   time.Time `json:"date,omitempty"`
 	Dinner *Recipe   `json:"dinner,omitempty"`
-	Lunch  *Recipe   `json:"lunch,omitempty"`
+	// Lunch  *Recipe   `json:"lunch,omitempty"`
 	Entity
+}
+
+type HTTPError struct {
+	Message string `json:"message,omitempty"`
+	Code    int    `json:"code,omitempty"`
 }
 
 type UserService interface {
@@ -61,11 +67,11 @@ type UserService interface {
 	DeleteUser(id int) error
 }
 type RecipeService interface {
-	Recipe(id int) (*Recipe, error)
+	// Recipe(id int) (*Recipe, error)
 	Recipes() ([]*Recipe, error)
-	CreateRecipe(u *Recipe) (*Recipe, error)
-	DeleteRecipe(id int) error
-	UserRecipes(userID int) ([]*Recipe, error)
+	CreateRecipe(u *NewRecipe) (*Recipe, error)
+	// DeleteRecipe(id int) error
+	// UserRecipes(userID int) ([]*Recipe, error)
 }
 type ItemService interface {
 	Item(id int) (*Item, error)

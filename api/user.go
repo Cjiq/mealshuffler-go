@@ -26,7 +26,7 @@ func (uc *UserController) GetUsers(c echo.Context) error {
 }
 
 func (uc *UserController) CreateUser(c echo.Context) error {
-	var newUser app.NewUser
+	newUser := app.NewUser{}
 
 	var json map[string]interface{}
 
