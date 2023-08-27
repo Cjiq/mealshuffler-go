@@ -28,20 +28,26 @@ func main() {
 		e.Logger.Fatal(err)
 	}
 
-	userService := sqlite.NewUserService(db)
-	userController := api.NewUserController(userService)
-
 	recipeService := sqlite.NewRecipeService(db)
 	recipeController := api.NewRecipeController(recipeService)
+
+	userService := sqlite.NewUserService(db)
+	userController := api.NewUserController(userService, recipeService)
+
+	dayService := sqlite.NewDayService(db)
+	dayController := api.NewDayController(dayService)
 
 	e.GET("/", hello)
 	e.GET("/api/users", userController.GetUsers)
 	e.POST("/api/users", userController.CreateUser)
 	e.GET("/api/users/:id", userController.GetUser)
 	e.DELETE("/api/users/:id", userController.DeleteUser)
+	e.GET("/api/users/:id/generate", userController.GenerateWeek)
 
 	e.GET("/api/recipes", recipeController.GetRecipes)
 	e.POST("/api/recipes", recipeController.CreateRecipe)
+
+	e.GET("/api/days", dayController.GetDays)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

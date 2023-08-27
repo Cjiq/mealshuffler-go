@@ -1,20 +1,27 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
 	"nrdev.se/mealshuffler/app"
 )
 
 type UserController struct {
-	userService app.UserService
+	userService   app.UserService
+	recipeService app.RecipeService
 }
 
-func NewUserController(userService app.UserService) *UserController {
-	return &UserController{userService: userService}
+func NewUserController(userService app.UserService, recipeService app.RecipeService) *UserController {
+	return &UserController{
+		userService:   userService,
+		recipeService: recipeService,
+	}
 }
 
 func (uc *UserController) GetUsers(c echo.Context) error {
@@ -45,14 +52,13 @@ func (uc *UserController) CreateUser(c echo.Context) error {
 }
 
 func (uc *UserController) GetUser(c echo.Context) error {
-	id := c.Param("id")
-	idNum, err := strconv.Atoi(id)
+	user, err := getUser(uc, c)
 	if err != nil {
-		return c.String(http.StatusBadRequest, "ID must be an integer")
-	}
-	user, err := uc.userService.User(idNum)
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "Error")
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
 	}
 	return c.JSON(http.StatusOK, user)
 }
@@ -69,4 +75,50 @@ func (uc *UserController) DeleteUser(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (uc *UserController) GenerateWeek(c echo.Context) error {
+	user, err := getUser(uc, c)
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+	currentYear := time.Now().Year()
+	_, weekNumber := time.Now().ISOWeek()
+	days := app.GenerateDays(currentYear, weekNumber)
+	recipes, err := uc.recipeService.Recipes()
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+	suggestedRecipes := app.SuggestnRandomRecipes(recipes, len(days))
+	for i, day := range days {
+		day.ID = uuid.New()
+		day.Dinner = suggestedRecipes[i]
+	}
+	user.Weeks = []*app.Week{
+		{
+			Number: weekNumber,
+			Entity: app.Entity{
+				ID: uuid.New(),
+			},
+			Days: days,
+		},
+	}
+	return c.JSON(http.StatusOK, user)
+}
+
+func getUser(uc *UserController, c echo.Context) (*app.User, error) {
+	id := c.Param("id")
+	user, err := uc.userService.User(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user, got: %s", err.Error())
+	}
+	return user, nil
 }

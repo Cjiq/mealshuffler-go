@@ -79,9 +79,15 @@ func (u *UserService) CreateUser(newUser *app.NewUser) (*app.User, error) {
 	return user, nil
 }
 
-func (u *UserService) User(id int) (*app.User, error) {
+func (u *UserService) User(id string) (*app.User, error) {
+	var idStr string
 	var user app.User
-	if err := u.db.QueryRow("SELECT id, name FROM user WHERE id = ?", id).Scan(&user.ID, &user.Name); err != nil {
+	if err := u.db.QueryRow("SELECT id, name FROM user WHERE id = ?", id).Scan(&idStr, &user.Name); err != nil {
+		return nil, err
+	}
+	var err error
+	user.ID, err = uuid.Parse(idStr)
+	if err != nil {
 		return nil, err
 	}
 	return &user, nil

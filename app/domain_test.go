@@ -154,7 +154,7 @@ func TestRandomSuggestions(t *testing.T) {
 			},
 		})
 	}
-	suggestions := suggestnRandomRecipes(recipes, suggestionCount)
+	suggestions := SuggestnRandomRecipes(recipes, suggestionCount)
 	recCount := map[string]int{}
 	for _, suggestion := range suggestions {
 		recCount[suggestion.Name]++

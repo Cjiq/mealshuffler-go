@@ -44,15 +44,20 @@ type Item struct {
 }
 
 type Week struct {
-	Days [7]*Day `json:"days,omitempty"`
+	Days   [7]*Day `json:"days,omitempty"`
+	Number int     `json:"number,omitempty"`
 	Entity
 }
 
-type Day struct {
+type NewDay struct {
 	Date   time.Time `json:"date,omitempty"`
 	Dinner *Recipe   `json:"dinner,omitempty"`
+}
+
+type Day struct {
 	// Lunch  *Recipe   `json:"lunch,omitempty"`
 	Entity
+	NewDay
 }
 
 type HTTPError struct {
@@ -61,7 +66,7 @@ type HTTPError struct {
 }
 
 type UserService interface {
-	User(id int) (*User, error)
+	User(id string) (*User, error)
 	Users() ([]*User, error)
 	CreateUser(u *NewUser) (*User, error)
 	DeleteUser(id int) error
@@ -78,6 +83,9 @@ type ItemService interface {
 	Items() ([]*Item, error)
 	CreateItem(u *Item) (*Item, error)
 	DeleteItem(id int) error
+}
+type DayService interface {
+	Days() ([]*Day, error)
 }
 
 func (r *Recipe) AlterPortions(portions int) *Recipe {
@@ -113,7 +121,11 @@ func GenerateDays(year, weekNumber int) [7]*Day {
 	var days [7]*Day
 	for i := 0; i < 7; i++ {
 		date := startDate.AddDate(0, 0, i)
-		days[i] = &Day{Date: date}
+		days[i] = &Day{
+			NewDay: NewDay{
+				Date: date,
+			},
+		}
 	}
 
 	return days
@@ -135,7 +147,7 @@ func GenerateWeeks(startTime time.Time) []*Week {
 	return weeks
 }
 
-func suggestnRandomRecipes(recipes []*Recipe, n int) []*Recipe {
+func SuggestnRandomRecipes(recipes []*Recipe, n int) []*Recipe {
 	var selectedRecipes []*Recipe
 	lastPickedRecipes := make([]*Recipe, 0, 5)
 
