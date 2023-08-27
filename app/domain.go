@@ -28,6 +28,7 @@ type NewRecipe struct {
 	Items             []*Item `json:"items,omitempty"`
 	ProbabilityWeight float64 `json:"probability_weight,omitempty"`
 	Portions          int     `json:"portions,omitempty"`
+	URL               string  `json:"url,omitempty"`
 }
 
 type Recipe struct {
@@ -44,8 +45,8 @@ type Item struct {
 }
 
 type Week struct {
-	Days   [7]*Day `json:"days,omitempty"`
-	Number int     `json:"number,omitempty"`
+	Days   []*Day `json:"days,omitempty"`
+	Number int    `json:"number,omitempty"`
 	Entity
 }
 
@@ -70,6 +71,7 @@ type UserService interface {
 	Users() ([]*User, error)
 	CreateUser(u *NewUser) (*User, error)
 	DeleteUser(id int) error
+	UserWeeks(userID string, startWeek, skipWeek int) ([]*Week, error)
 }
 type RecipeService interface {
 	// Recipe(id int) (*Recipe, error)
@@ -113,19 +115,20 @@ func (r *Recipe) Cost() float64 {
 }
 
 // GenerateDays generates a slice of days for a given year and iso week number.
-func GenerateDays(year, weekNumber int) [7]*Day {
+func GenerateDays(year, weekNumber int) []*Day {
 
 	startDate := isoweek.StartTime(year, weekNumber, time.UTC)
 
 	// Generate dates for each day of the week.
-	var days [7]*Day
+	var days []*Day
 	for i := 0; i < 7; i++ {
 		date := startDate.AddDate(0, 0, i)
-		days[i] = &Day{
+		d := &Day{
 			NewDay: NewDay{
 				Date: date,
 			},
 		}
+		days = append(days, d)
 	}
 
 	return days
