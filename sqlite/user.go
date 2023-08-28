@@ -2,6 +2,9 @@ package sqlite
 
 import (
 	"database/sql"
+	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -136,8 +139,6 @@ func (us *UserService) UserWeeks(id string, startWeek int, weekCount int) ([]*ap
 	var days []*app.Day
 	lastWeek := -1
 	w := &app.Week{}
-	d := &app.Day{}
-	r := &app.Recipe{}
 	var wIDStr, dIDStr, rIDStr, weekDateStr string
 	// wID, wNumber, dID, dDate, rID, rName, rPortions, rProbabilityWeight
 	// -------------------------------------------------------------------
@@ -150,6 +151,8 @@ func (us *UserService) UserWeeks(id string, startWeek int, weekCount int) ([]*ap
 	// 0,   1,       7,   14,    10,   5,     6,         7
 	// 1,   2,       8,   14,    10,   5,     6,         7
 	for rows.Next() {
+		d := &app.Day{}
+		r := &app.Recipe{}
 		if err := rows.Scan(&wIDStr, &w.Number,
 			&dIDStr, &weekDateStr,
 			&rIDStr, &r.Name, &r.Portions, &r.ProbabilityWeight); err != nil {
@@ -178,8 +181,31 @@ func (us *UserService) UserWeeks(id string, startWeek int, weekCount int) ([]*ap
 			lastWeek = w.Number
 		}
 		d.Dinner = r
+		d.Date, err = time.Parse("2006-01-02", weekDateStr)
+		if err != nil {
+			return nil, err
+		}
 		days = append(days, d)
 	}
 
 	return weeks, nil
+}
+
+func (us *UserService) SaveUserWeeks(id string, weeks []*app.Week) error {
+	// tx, err := us.db.Begin()
+	// if err != nil {
+	// 	return err
+	// }
+	for _, w := range weeks {
+		// if err := us.saveWeek(tx, id, w); err != nil {
+		// 	return err
+		// }
+		jsonBytes, err := json.Marshal(w)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(jsonBytes))
+	}
+	// tx.Commit()
+	return nil
 }

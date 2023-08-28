@@ -15,12 +15,14 @@ import (
 type UserController struct {
 	userService   app.UserService
 	recipeService app.RecipeService
+	weekService   app.WeekService
 }
 
-func NewUserController(userService app.UserService, recipeService app.RecipeService) *UserController {
+func NewUserController(userService app.UserService, recipeService app.RecipeService, weekService app.WeekService) *UserController {
 	return &UserController{
 		userService:   userService,
 		recipeService: recipeService,
+		weekService:   weekService,
 	}
 }
 
@@ -104,17 +106,53 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 	}
 	user.Weeks = []*app.Week{
 		{
-			Number: weekNumber,
+			NewWeek: app.NewWeek{
+				Number: weekNumber,
+				Days:   days,
+			},
 			Entity: app.Entity{
 				ID: uuid.New(),
 			},
-			Days: days,
 		},
 	}
 	return c.JSON(http.StatusOK, user)
 }
 
+func (uc *UserController) SaveWeek(c echo.Context) error {
+	fmt.Println("SaveWeek")
+	user, err := getUser(uc, c)
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+
+	newUser := app.User{}
+
+	if err = c.Bind(&newUser); err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+
+	if len(newUser.Weeks) == 0 {
+		httpErr := app.HTTPError{
+			Message: "JSON body must contain 'weeks'",
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+	fmt.Print(user.Name)
+
+	return c.JSON(http.StatusOK, newUser)
+}
+
 func getUser(uc *UserController, c echo.Context) (*app.User, error) {
+	fmt.Printf("%+v\n", c)
 	id := c.Param("id")
 	user, err := uc.userService.User(id)
 	if err != nil {

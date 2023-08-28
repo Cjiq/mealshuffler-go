@@ -44,21 +44,21 @@ type Item struct {
 	Entity
 }
 
-type Week struct {
+type NewWeek struct {
 	Days   []*Day `json:"days,omitempty"`
 	Number int    `json:"number,omitempty"`
-	Entity
+	Year   int    `json:"year,omitempty"`
 }
 
-type NewDay struct {
-	Date   time.Time `json:"date,omitempty"`
-	Dinner *Recipe   `json:"dinner,omitempty"`
+type Week struct {
+	NewWeek
+	Entity
 }
 
 type Day struct {
-	// Lunch  *Recipe   `json:"lunch,omitempty"`
+	Date   time.Time `json:"date,omitempty"`
+	Dinner *Recipe   `json:"dinner,omitempty"`
 	Entity
-	NewDay
 }
 
 type HTTPError struct {
@@ -70,8 +70,9 @@ type UserService interface {
 	User(id string) (*User, error)
 	Users() ([]*User, error)
 	CreateUser(u *NewUser) (*User, error)
-	DeleteUser(id int) error
+	DeleteUser(id string) error
 	UserWeeks(userID string, startWeek, skipWeek int) ([]*Week, error)
+	SaveUserWeeks(userID string, weeks []*Week) error
 }
 type RecipeService interface {
 	// Recipe(id int) (*Recipe, error)
@@ -80,14 +81,19 @@ type RecipeService interface {
 	// DeleteRecipe(id int) error
 	// UserRecipes(userID int) ([]*Recipe, error)
 }
-type ItemService interface {
-	Item(id int) (*Item, error)
-	Items() ([]*Item, error)
-	CreateItem(u *Item) (*Item, error)
-	DeleteItem(id int) error
-}
-type DayService interface {
-	Days() ([]*Day, error)
+
+//	type ItemService interface {
+//		Item(id int) (*Item, error)
+//		Items() ([]*Item, error)
+//		CreateItem(u *Item) (*Item, error)
+//		DeleteItem(id int) error
+//	}
+type WeekService interface {
+	Week(id string, userID string) (*Week, error)
+	Weeks(userID string) ([]*Week, error)
+	CreateWeek(w *NewWeek, userID string) (*Week, error)
+	CreateWeeks(w []*NewWeek, userID string) ([]*Week, error)
+	DeleteWeek(id string) error
 }
 
 func (r *Recipe) AlterPortions(portions int) *Recipe {
@@ -124,9 +130,7 @@ func GenerateDays(year, weekNumber int) []*Day {
 	for i := 0; i < 7; i++ {
 		date := startDate.AddDate(0, 0, i)
 		d := &Day{
-			NewDay: NewDay{
-				Date: date,
-			},
+			Date: date,
 		}
 		days = append(days, d)
 	}
@@ -144,7 +148,9 @@ func GenerateWeeks(startTime time.Time) []*Week {
 
 	for i := week; i <= 52; i++ {
 		weeks = append(weeks, &Week{
-			Days: GenerateDays(year, i),
+			NewWeek: NewWeek{
+				Days: GenerateDays(year, i),
+			},
 		})
 	}
 	return weeks

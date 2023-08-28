@@ -34,20 +34,16 @@ func main() {
 	userService := sqlite.NewUserService(db)
 	userController := api.NewUserController(userService, recipeService)
 
-	dayService := sqlite.NewDayService(db)
-	dayController := api.NewDayController(dayService)
-
 	e.GET("/", hello)
 	e.GET("/api/users", userController.GetUsers)
 	e.POST("/api/users", userController.CreateUser)
 	e.GET("/api/users/:id", userController.GetUser)
 	e.DELETE("/api/users/:id", userController.DeleteUser)
 	e.GET("/api/users/:id/generate", userController.GenerateWeek)
+	e.POST("/api/users/:id/weeks", userController.SaveWeek)
 
 	e.GET("/api/recipes", recipeController.GetRecipes)
 	e.POST("/api/recipes", recipeController.CreateRecipe)
-
-	e.GET("/api/days", dayController.GetDays)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }
