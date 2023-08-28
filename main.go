@@ -32,7 +32,10 @@ func main() {
 	recipeController := api.NewRecipeController(recipeService)
 
 	userService := sqlite.NewUserService(db)
-	userController := api.NewUserController(userService, recipeService)
+	weekService := sqlite.NewWeekService(db)
+	userController := api.NewUserController(userService, recipeService, weekService)
+
+	weekController := api.NewWeekController(weekService)
 
 	e.GET("/", hello)
 	e.GET("/api/users", userController.GetUsers)
@@ -44,6 +47,8 @@ func main() {
 
 	e.GET("/api/recipes", recipeController.GetRecipes)
 	e.POST("/api/recipes", recipeController.CreateRecipe)
+
+	e.GET("/api/users/:id/weeks/:year", weekController.GetWeeks)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

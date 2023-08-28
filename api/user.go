@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -67,13 +66,13 @@ func (uc *UserController) GetUser(c echo.Context) error {
 
 func (uc *UserController) DeleteUser(c echo.Context) error {
 	id := c.Param("id")
-	idNum, err := strconv.Atoi(id)
+	err := uc.userService.DeleteUser(id)
 	if err != nil {
-		return c.String(http.StatusBadRequest, "ID must be an integer")
-	}
-	err = uc.userService.DeleteUser(idNum)
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "Error")
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -81,6 +80,7 @@ func (uc *UserController) DeleteUser(c echo.Context) error {
 
 func (uc *UserController) GenerateWeek(c echo.Context) error {
 	user, err := getUser(uc, c)
+	fmt.Println(user)
 	if err != nil {
 		httpErr := app.HTTPError{
 			Message: err.Error(),
@@ -104,7 +104,7 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 		day.ID = uuid.New()
 		day.Dinner = suggestedRecipes[i]
 	}
-	user.Weeks = []*app.Week{
+	weeks := []*app.Week{
 		{
 			NewWeek: app.NewWeek{
 				Number: weekNumber,
@@ -115,11 +115,10 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 			},
 		},
 	}
-	return c.JSON(http.StatusOK, user)
+	return c.JSON(http.StatusOK, weeks)
 }
 
 func (uc *UserController) SaveWeek(c echo.Context) error {
-	fmt.Println("SaveWeek")
 	user, err := getUser(uc, c)
 	if err != nil {
 		httpErr := app.HTTPError{
@@ -129,9 +128,9 @@ func (uc *UserController) SaveWeek(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpErr)
 	}
 
-	newUser := app.User{}
+	weeks := []*app.NewWeek{}
 
-	if err = c.Bind(&newUser); err != nil {
+	if err = c.Bind(&weeks); err != nil {
 		httpErr := app.HTTPError{
 			Message: err.Error(),
 			Code:    http.StatusBadRequest,
@@ -139,16 +138,33 @@ func (uc *UserController) SaveWeek(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpErr)
 	}
 
-	if len(newUser.Weeks) == 0 {
+	if len(weeks) == 0 {
 		httpErr := app.HTTPError{
-			Message: "JSON body must contain 'weeks'",
+			Message: "no weeks to save",
 			Code:    http.StatusBadRequest,
 		}
 		return c.JSON(http.StatusBadRequest, httpErr)
 	}
-	fmt.Print(user.Name)
+	for _, week := range weeks {
+		if week.Number == 0 || week.Number > 52 {
+			httpErr := app.HTTPError{
+				Message: "number need to be set between 1 and 52",
+				Code:    http.StatusUnprocessableEntity,
+			}
+			return c.JSON(http.StatusUnprocessableEntity, httpErr)
+		}
+	}
 
-	return c.JSON(http.StatusOK, newUser)
+	dbWeeks, err := uc.weekService.CreateWeeks(weeks, user.ID.String())
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+
+	return c.JSON(http.StatusOK, dbWeeks)
 }
 
 func getUser(uc *UserController, c echo.Context) (*app.User, error) {

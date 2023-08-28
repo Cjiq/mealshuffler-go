@@ -24,11 +24,12 @@ func NewWeekService(db *sql.DB) *WeekService {
 
 func (ws *WeekService) CreateWeekTable() error {
 	query := (`
-		CREATE TABLE IF NOT EXISTS weeks (
+		CREATE TABLE IF NOT EXISTS week (
 			id TEXT PRIMARY KEY,
 			days TEXT,
 			number INTEGER NOT NULL,
-			user_id TEXT NOT NULL,
+			year INTEGER NOT NULL,
+			user_id TEXT NOT NULL
 		);
 	`)
 	if _, err := ws.db.Exec(query); err != nil {
@@ -37,11 +38,11 @@ func (ws *WeekService) CreateWeekTable() error {
 	return nil
 }
 
-func (ws *WeekService) Week(id string) (*app.Week, error) {
+func (ws *WeekService) Week(id string, userID string) (*app.Week, error) {
 	query := (`
 		SELECT id, days, number
-		FROM weeks
-		WHERE id = ?
+		FROM week
+		WHERE id = ? AND user_id = ?
 	`)
 	row := ws.db.QueryRow(query, id)
 	var week app.Week
@@ -60,20 +61,20 @@ func (ws *WeekService) Week(id string) (*app.Week, error) {
 
 func (ws *WeekService) Weeks(userID string, year int) ([]*app.Week, error) {
 	query := (`
-		SELECT id, days, number, year
-		FROM weeks
-		WHERE user_id = ?
+		SELECT DISTINCT id, days, number, year
+		FROM week
+		WHERE user_id = ? AND year = ?
 	`)
-	rows, err := ws.db.Query(query, userID)
+	rows, err := ws.db.Query(query, userID, year)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var weeks []*Week
+	var weeks []*app.Week
 	for rows.Next() {
-		var week Week
+		week := &app.Week{}
 		var daysJSON string
-		err := rows.Scan(&week.ID, &daysJSON, &week.Number)
+		err := rows.Scan(&week.ID, &daysJSON, &week.Number, &week.Year)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +84,7 @@ func (ws *WeekService) Weeks(userID string, year int) ([]*app.Week, error) {
 			return nil, err
 		}
 		week.Days = days
-		weeks = append(weeks, &week)
+		weeks = append(weeks, week)
 	}
 	return weeks, nil
 }
@@ -91,7 +92,7 @@ func (ws *WeekService) Weeks(userID string, year int) ([]*app.Week, error) {
 func (ws *WeekService) CreateWeek(newWeek *app.NewWeek, userID string) (*app.Week, error) {
 	id := uuid.New()
 	query := (`
-		INSERT INTO weeks (id, days, number, user_id)
+		INSERT INTO week (id, days, number, user_id)
 		VALUES (?, ?, ?, ?)
 	`)
 	daysJSON, err := json.Marshal(newWeek.Days)
@@ -106,7 +107,7 @@ func (ws *WeekService) CreateWeek(newWeek *app.NewWeek, userID string) (*app.Wee
 	if err != nil {
 		return nil, err
 	}
-	_, err = stmt.Exec(id, daysJSON, newWeek.Number, userID.String())
+	_, err = stmt.Exec(id, daysJSON, newWeek.Number, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -118,15 +119,16 @@ func (ws *WeekService) CreateWeek(newWeek *app.NewWeek, userID string) (*app.Wee
 	}, nil
 }
 
-func (ws *WeekService) CreateWeeks(newWeeks []*app.NewWeek, userID uuid.UUID) ([]*app.Week, error) {
+func (ws *WeekService) CreateWeeks(newWeeks []*app.NewWeek, userID string) ([]*app.Week, error) {
 	weeks := []*app.Week{}
 	tx, err := ws.db.Begin()
 	if err != nil {
 		return nil, err
 	}
+	defer tx.Rollback()
 	query := (`
-		INSERT INTO weeks (id, days, number, user_id)
-		VALUES (?, ?, ?, ?)
+		INSERT INTO week (id, days, number, year, user_id)
+		VALUES (?, ?, ?, ?, ?)
 	`)
 	stmt, err := tx.Prepare(query)
 	if err != nil {
@@ -136,12 +138,19 @@ func (ws *WeekService) CreateWeeks(newWeeks []*app.NewWeek, userID uuid.UUID) ([
 		var week *app.Week
 		var daysJSON []byte
 		daysJSON, err = json.Marshal(newWeek.Days)
+		id := uuid.New()
 		if err != nil {
 			return nil, err
 		}
-		_, err = stmt.Exec(uuid.New(), string(daysJSON), newWeek.Number, userID.String())
+		_, err = stmt.Exec(id, string(daysJSON), newWeek.Number, newWeek.Year, userID)
 		if err != nil {
 			return nil, err
+		}
+		week = &app.Week{
+			Entity: app.Entity{
+				ID: id,
+			},
+			NewWeek: *newWeek,
 		}
 		weeks = append(weeks, week)
 	}

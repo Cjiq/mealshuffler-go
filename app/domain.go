@@ -90,10 +90,10 @@ type RecipeService interface {
 //	}
 type WeekService interface {
 	Week(id string, userID string) (*Week, error)
-	Weeks(userID string) ([]*Week, error)
+	Weeks(userID string, year int) ([]*Week, error)
 	CreateWeek(w *NewWeek, userID string) (*Week, error)
 	CreateWeeks(w []*NewWeek, userID string) ([]*Week, error)
-	DeleteWeek(id string) error
+	// DeleteWeek(id string) error
 }
 
 func (r *Recipe) AlterPortions(portions int) *Recipe {

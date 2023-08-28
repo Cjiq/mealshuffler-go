@@ -96,7 +96,7 @@ func (u *UserService) User(id string) (*app.User, error) {
 	return &user, nil
 }
 
-func (u *UserService) DeleteUser(id int) error {
+func (u *UserService) DeleteUser(id string) error {
 	tx, err := u.db.Begin()
 	if err != nil {
 		return err
