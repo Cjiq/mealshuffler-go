@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -88,8 +89,26 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, httpErr)
 	}
-	currentYear := time.Now().Year()
-	_, weekNumber := time.Now().ISOWeek()
+	weekNumber := -1
+	now := time.Now()
+	currentYear, backupWeek := now.ISOWeek()
+	weekNumber, err = uc.weekService.NextWeekNumber(user.ID.String())
+	if err != nil {
+		if strings.Contains(err.Error(), "converting NULL to int is unsupported") {
+			weekNumber = backupWeek
+		} else {
+			httpErr := app.HTTPError{
+				Message: err.Error(),
+				Code:    http.StatusInternalServerError,
+			}
+
+			return c.JSON(http.StatusInternalServerError, httpErr)
+		}
+	}
+	if weekNumber == 0 {
+		weekNumber = backupWeek
+	}
+
 	days := app.GenerateDays(currentYear, weekNumber)
 	recipes, err := uc.recipeService.Recipes()
 	if err != nil {
@@ -109,11 +128,47 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 			NewWeek: app.NewWeek{
 				Number: weekNumber,
 				Days:   days,
+				Year:   currentYear,
 			},
 			Entity: app.Entity{
 				ID: uuid.New(),
 			},
 		},
+	}
+	newWeek := &app.NewWeek{}
+	newWeek.Days = weeks[0].Days
+	newWeek.Number = -1
+	newWeek.Year = weeks[0].Year
+
+	week := &app.Week{
+		NewWeek: *newWeek,
+		Entity: app.Entity{
+			ID: uuid.New(),
+		},
+	}
+
+	var lastGeneratedWeek *app.Week
+	lastGeneratedWeek, err = uc.weekService.LastGeneratedWeek(user.ID.String())
+	if err != nil || lastGeneratedWeek == nil {
+		if err.Error() == "week not found" || lastGeneratedWeek == nil {
+			lastGeneratedWeek, err = uc.weekService.CreateWeek(newWeek, user.ID.String())
+			if err != nil {
+				httpErr := app.HTTPError{
+					Message: err.Error(),
+					Code:    http.StatusInternalServerError,
+				}
+				return c.JSON(http.StatusInternalServerError, httpErr)
+			}
+		}
+	}
+	week.ID = lastGeneratedWeek.ID
+	_, err = uc.weekService.UpdateWeek(week, user.ID.String())
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
 	}
 	return c.JSON(http.StatusOK, weeks)
 }
@@ -164,7 +219,61 @@ func (uc *UserController) SaveWeek(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, httpErr)
 	}
 
-	return c.JSON(http.StatusOK, dbWeeks)
+	// nextWeekNumber, err := uc.weekService.NextWeekNumber(user.ID.String())
+	// if err != nil {
+	// 	httpErr := app.HTTPError{
+	// 		Message: err.Error(),
+	// 		Code:    http.StatusInternalServerError,
+	// 	}
+	// 	return c.JSON(http.StatusInternalServerError, httpErr)
+	// }
+	// c.Response().Header().Set("X-Next-Week-Number", fmt.Sprintf("%d", nextWeekNumber))
+
+	return c.JSON(http.StatusCreated, dbWeeks)
+}
+
+func (uc *UserController) DeleteWeek(c echo.Context) error {
+	user, err := getUser(uc, c)
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+	weekID := c.Param("weekID")
+	err = uc.weekService.DeleteWeek(weekID, user.ID.String())
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (uc *UserController) NextWeekNumber(c echo.Context) error {
+	user, err := getUser(uc, c)
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+
+	nextWeekNumber, err := uc.weekService.NextWeekNumber(user.ID.String())
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+
+	return c.JSON(http.StatusOK, nextWeekNumber)
 }
 
 func getUser(uc *UserController, c echo.Context) (*app.User, error) {

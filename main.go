@@ -19,9 +19,9 @@ func main() {
 
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
-	e.Use(middleware.Gzip())
+	// e.Use(middleware.Gzip())
 	e.Use(checkRequestContentTypeJSON)
+	e.Use(middleware.CORS())
 
 	db, err := sqlite.NewDB()
 	if err != nil {
@@ -44,11 +44,15 @@ func main() {
 	e.DELETE("/api/users/:id", userController.DeleteUser)
 	e.GET("/api/users/:id/generate", userController.GenerateWeek)
 	e.POST("/api/users/:id/weeks", userController.SaveWeek)
+	e.DELETE("/api/users/:id/weeks/:weekID", userController.DeleteWeek)
+	e.GET("/api/users/:id/weeks/next", userController.NextWeekNumber)
 
 	e.GET("/api/recipes", recipeController.GetRecipes)
 	e.POST("/api/recipes", recipeController.CreateRecipe)
 
 	e.GET("/api/users/:id/weeks/:year", weekController.GetWeeks)
+	e.GET("/api/users/:id/weeks/last", weekController.GetLastGeneratedWeek)
+	e.DELETE("/api/users/:id/weeks/:year/all", weekController.DeleteWeeks)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

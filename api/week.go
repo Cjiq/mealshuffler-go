@@ -39,6 +39,19 @@ func (wc *WeekController) GetWeeks(c echo.Context) error {
 	return c.JSON(http.StatusOK, weeks)
 }
 
+func (wc *WeekController) GetLastGeneratedWeek(c echo.Context) error {
+	id := c.Param("id")
+	week, err := wc.weekService.LastGeneratedWeek(id)
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "Error: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+	return c.JSON(http.StatusOK, week)
+}
+
 func (wc *WeekController) CreateWeek(c echo.Context) error {
 	userID := c.Param("id")
 	newWeek := app.NewWeek{}
@@ -88,4 +101,26 @@ func (wc *WeekController) CreateWeeks(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, httpErr)
 	}
 	return c.JSON(http.StatusOK, weeks)
+}
+
+func (wc *WeekController) DeleteWeeks(c echo.Context) error {
+	userID := c.Param("id")
+	yearStr := c.Param("year")
+	year, err := strconv.Atoi(yearStr)
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "Error: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+	err = wc.weekService.DeleteWeeks(userID, year)
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "Error: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+	return c.NoContent(http.StatusNoContent)
 }
