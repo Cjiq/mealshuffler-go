@@ -49,6 +49,8 @@ func main() {
 
 	e.GET("/api/recipes", recipeController.GetRecipes)
 	e.POST("/api/recipes", recipeController.CreateRecipe)
+	e.DELETE("/api/recipes", recipeController.DeleteRecipes)
+	e.PUT("/api/recipes", recipeController.UpdateRecipe)
 
 	e.GET("/api/users/:id/weeks/:year", weekController.GetWeeks)
 	e.GET("/api/users/:id/weeks/last", weekController.GetLastGeneratedWeek)

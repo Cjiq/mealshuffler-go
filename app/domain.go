@@ -77,9 +77,11 @@ type UserService interface {
 type RecipeService interface {
 	// Recipe(id int) (*Recipe, error)
 	Recipes() ([]*Recipe, error)
-	CreateRecipe(u *NewRecipe) (*Recipe, error)
+	CreateRecipe(rs *NewRecipe) (*Recipe, error)
+	UpdateRecipe(rs *Recipe) (*Recipe, error)
 	// DeleteRecipe(id int) error
 	// UserRecipes(userID int) ([]*Recipe, error)
+	DeleteAllRecipes() error
 }
 
 //	type ItemService interface {

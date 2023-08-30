@@ -64,3 +64,56 @@ func (rc *RecipeController) CreateRecipe(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, recipe)
 }
+
+func (rc *RecipeController) DeleteRecipes(c echo.Context) error {
+	err := rc.recipeService.DeleteAllRecipes()
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "Error: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (rc *RecipeController) UpdateRecipe(c echo.Context) error {
+	var recipe app.Recipe
+	if err := c.Bind(&recipe); err != nil {
+		httpErr := app.HTTPError{
+			Message: "Error: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+	if recipe.Name == "" {
+		httpErr := app.HTTPError{
+			Message: "Error: name is required",
+			Code:    http.StatusUnprocessableEntity,
+		}
+		return c.JSON(http.StatusUnprocessableEntity, httpErr)
+	}
+	if recipe.ProbabilityWeight == 0 {
+		httpErr := app.HTTPError{
+			Message: "Error: probability_weight is required",
+			Code:    http.StatusUnprocessableEntity,
+		}
+		return c.JSON(http.StatusUnprocessableEntity, httpErr)
+	}
+	if recipe.Portions == 0 {
+		httpErr := app.HTTPError{
+			Message: "Error: portions is required",
+			Code:    http.StatusUnprocessableEntity,
+		}
+		return c.JSON(http.StatusUnprocessableEntity, httpErr)
+	}
+	updatedRecipe, err := rc.recipeService.UpdateRecipe(&recipe)
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "Error: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+	return c.JSON(http.StatusOK, updatedRecipe)
+}

@@ -13,15 +13,15 @@ type RecipeService struct {
 }
 
 func NewRecipeService(db *sql.DB) *RecipeService {
-	us := &RecipeService{db: db}
-	err := us.CreateRecipeTable()
+	rs := &RecipeService{db: db}
+	err := rs.CreateRecipeTable()
 	if err != nil {
 		panic(err)
 	}
-	return &RecipeService{db: db}
+	return rs
 }
 
-func (u *RecipeService) CreateRecipeTable() error {
+func (r *RecipeService) CreateRecipeTable() error {
 	query := `CREATE TABLE IF NOT EXISTS recipe (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
@@ -29,7 +29,7 @@ func (u *RecipeService) CreateRecipeTable() error {
 		portions INTEGER NOT NULL,
 		user_id TEXT
 	);`
-	if _, err := u.db.Exec(query); err != nil {
+	if _, err := r.db.Exec(query); err != nil {
 		return err
 	}
 
@@ -40,7 +40,7 @@ func (u *RecipeService) CreateRecipeTable() error {
 	CREATE INDEX IF NOT EXISTS idx_recipe_item ON recipes_items (recipe_id, item_id);
 	CREATE INDEX IF NOT EXISTS idx_item ON recipes_items (item_id);
 	`
-	if _, err := u.db.Exec(query); err != nil {
+	if _, err := r.db.Exec(query); err != nil {
 		return err
 	}
 
@@ -48,8 +48,8 @@ func (u *RecipeService) CreateRecipeTable() error {
 }
 
 // Recipes returns all recipes that are not owned by a user
-func (u *RecipeService) Recipes() ([]*app.Recipe, error) {
-	rows, err := u.db.Query(`SELECT id, name, probability_weight, portions
+func (r *RecipeService) Recipes() ([]*app.Recipe, error) {
+	rows, err := r.db.Query(`SELECT id, name, probability_weight, portions
 	FROM recipe
 	WHERE user_id is null OR user_id = ''
 	`)
@@ -70,9 +70,9 @@ func (u *RecipeService) Recipes() ([]*app.Recipe, error) {
 	return recepis, nil
 }
 
-func (u *RecipeService) CreateRecipe(newRecipe *app.NewRecipe) (*app.Recipe, error) {
+func (r *RecipeService) CreateRecipe(newRecipe *app.NewRecipe) (*app.Recipe, error) {
 	id := uuid.New()
-	tx, err := u.db.Begin()
+	tx, err := r.db.Begin()
 	if err != nil {
 		return nil, err
 	}
@@ -112,16 +112,16 @@ func (u *RecipeService) CreateRecipe(newRecipe *app.NewRecipe) (*app.Recipe, err
 	return recipe, nil
 }
 
-func (u *RecipeService) Recipe(id int) (*app.Recipe, error) {
+func (r *RecipeService) Recipe(id int) (*app.Recipe, error) {
 	var recepi app.Recipe
-	if err := u.db.QueryRow("SELECT id, name FROM recepis WHERE id = ?", id).Scan(&recepi.ID, &recepi.Name); err != nil {
+	if err := r.db.QueryRow("SELECT id, name FROM recepis WHERE id = ?", id).Scan(&recepi.ID, &recepi.Name); err != nil {
 		return nil, err
 	}
 	return &recepi, nil
 }
 
-func (u *RecipeService) DeleteRecipe(id int) error {
-	tx, err := u.db.Begin()
+func (r *RecipeService) DeleteRecipe(id int) error {
+	tx, err := r.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -136,4 +136,40 @@ func (u *RecipeService) DeleteRecipe(id int) error {
 	}
 	tx.Commit()
 	return nil
+}
+
+func (rs *RecipeService) DeleteAllRecipes() error {
+	tx, err := rs.db.Begin()
+	if err != nil {
+		return err
+	}
+	stmt, err := tx.Prepare("DELETE FROM recipe")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	if _, err := stmt.Exec(); err != nil {
+		return err
+	}
+	tx.Commit()
+	return nil
+}
+
+func (rs *RecipeService) UpdateRecipe(recipe *app.Recipe) (*app.Recipe, error) {
+	tx, err := rs.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	stmt, err := tx.Prepare("UPDATE recipe SET name = ?, probability_weight = ?, portions = ? WHERE id = ?")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	if _, err := stmt.Exec(recipe.Name, recipe.ProbabilityWeight, recipe.Portions, recipe.ID.String()); err != nil {
+		return nil, err
+	}
+	tx.Commit()
+	return recipe, nil
 }
