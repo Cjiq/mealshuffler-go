@@ -276,6 +276,63 @@ func (uc *UserController) NextWeekNumber(c echo.Context) error {
 	return c.JSON(http.StatusOK, nextWeekNumber)
 }
 
+func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
+	user, err := getUser(uc, c)
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+	weekID := c.Param("weekID")
+	var recipe app.Recipe
+	if err = c.Bind(&recipe); err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+	week, err := uc.weekService.Week(weekID, user.ID.String())
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "failed to fetch week: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+
+	allRecipes, err := uc.recipeService.Recipes()
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "failed to fetch recipes: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+
+	bannedRecipes := []*app.Recipe{}
+	bannedRecipes = append(bannedRecipes, &recipe)
+	for _, day := range week.Days {
+		bannedRecipes = append(bannedRecipes, day.Dinner)
+	}
+
+	recipes := []*app.Recipe{}
+	for _, r := range allRecipes {
+		for _, br := range bannedRecipes {
+			if r.Name != br.Name {
+				recipes = append(recipes, r)
+			}
+		}
+	}
+
+	newSuggestions := app.SuggestnRandomRecipes(recipes, 3)
+
+	return c.JSON(http.StatusOK, newSuggestions)
+
+}
+
 func getUser(uc *UserController, c echo.Context) (*app.User, error) {
 	fmt.Printf("%+v\n", c)
 	id := c.Param("id")

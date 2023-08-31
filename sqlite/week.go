@@ -45,7 +45,7 @@ func (ws *WeekService) Week(id string, userID string) (*app.Week, error) {
 		FROM week
 		WHERE id = ? AND user_id = ?
 	`)
-	row := ws.db.QueryRow(query, id)
+	row := ws.db.QueryRow(query, id, userID)
 	var week app.Week
 	var daysJSON string
 	err := row.Scan(&week.ID, &daysJSON, &week.Number)
@@ -57,6 +57,7 @@ func (ws *WeekService) Week(id string, userID string) (*app.Week, error) {
 	if err != nil {
 		return nil, err
 	}
+	week.Days = days
 	return &week, nil
 }
 
