@@ -47,6 +47,7 @@ func main() {
 	e.DELETE("/api/users/:id/weeks/:weekID", userController.DeleteWeek)
 	e.GET("/api/users/:id/weeks/next", userController.NextWeekNumber)
 	e.POST("/api/users/:id/weeks/:weekID/suggest", userController.GenerateRecipeAlternative)
+	e.PUT("/api/users/:id/weeks", userController.UpdateWeek)
 
 	e.GET("/api/recipes", recipeController.GetRecipes)
 	e.POST("/api/recipes", recipeController.CreateRecipe)

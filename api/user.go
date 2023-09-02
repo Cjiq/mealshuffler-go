@@ -81,7 +81,6 @@ func (uc *UserController) DeleteUser(c echo.Context) error {
 
 func (uc *UserController) GenerateWeek(c echo.Context) error {
 	user, err := getUser(uc, c)
-	fmt.Println(user)
 	if err != nil {
 		httpErr := app.HTTPError{
 			Message: err.Error(),
@@ -331,6 +330,35 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, newSuggestions)
 
+}
+
+func (uc *UserController) UpdateWeek(c echo.Context) error {
+	user, err := getUser(uc, c)
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "failed to fetch user: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+	week := &app.Week{}
+	if err = c.Bind(week); err != nil {
+		httpErr := app.HTTPError{
+			Message: "failed to bind week: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+	week, err = uc.weekService.UpdateWeek(week, user.ID.String())
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "failed to update week: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+
+	return c.JSON(http.StatusOK, week)
 }
 
 func getUser(uc *UserController, c echo.Context) (*app.User, error) {
