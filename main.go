@@ -19,9 +19,9 @@ func main() {
 
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	// e.Use(middleware.Gzip())
-	e.Use(checkRequestContentTypeJSON)
+	e.Use(middleware.Gzip())
 	e.Use(middleware.CORS())
+	e.Use(checkRequestContentTypeJSON)
 
 	db, err := sqlite.NewDB()
 	if err != nil {
