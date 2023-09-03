@@ -162,6 +162,44 @@ func (ws *WeekService) UpdateWeek(week *app.Week, userID string) (*app.Week, err
 	return week, nil
 }
 
+func (ws *WeekService) UpdateWeeks(weeks []*app.Week, userID string) ([]*app.Week, error) {
+	query := (`
+		UPDATE week
+		SET days = ?, number = ?, year = ?
+		WHERE id = ? AND user_id = ?
+	`)
+	tx, err := ws.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return nil, err
+	}
+	for _, week := range weeks {
+		daysJSON, err := json.Marshal(week.Days)
+		if err != nil {
+			return nil, err
+		}
+		res, err := stmt.Exec(daysJSON, week.Number, week.Year, week.ID, userID)
+		if err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+		rowsAffected, err := res.RowsAffected()
+		if err != nil || rowsAffected == 0 {
+			tx.Rollback()
+			return nil, fmt.Errorf("week not found")
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return weeks, nil
+}
+
 func (ws *WeekService) CreateWeeks(newWeeks []*app.NewWeek, userID string) ([]*app.Week, error) {
 	weeks := []*app.Week{}
 	tx, err := ws.db.Begin()

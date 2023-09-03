@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -12,8 +11,6 @@ import (
 )
 
 func main() {
-
-	fmt.Println("Hello World")
 
 	e := echo.New()
 
@@ -47,7 +44,8 @@ func main() {
 	e.DELETE("/api/users/:id/weeks/:weekID", userController.DeleteWeek)
 	e.GET("/api/users/:id/weeks/next", userController.NextWeekNumber)
 	e.POST("/api/users/:id/weeks/:weekID/suggest", userController.GenerateRecipeAlternative)
-	e.PUT("/api/users/:id/weeks", userController.UpdateWeek)
+	e.PUT("/api/users/:id/weeks/:weekID", userController.UpdateWeek)
+	e.PUT("/api/users/:id/weeks", userController.UpdateWeeks)
 
 	e.GET("/api/recipes", recipeController.GetRecipes)
 	e.POST("/api/recipes", recipeController.CreateRecipe)

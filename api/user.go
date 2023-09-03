@@ -293,13 +293,25 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, httpErr)
 	}
-	week, err := uc.weekService.Week(weekID, user.ID.String())
+	var week *app.Week
+	week, err = uc.weekService.Week(weekID, user.ID.String())
 	if err != nil {
-		httpErr := app.HTTPError{
-			Message: "failed to fetch week: " + err.Error(),
-			Code:    http.StatusInternalServerError,
+		if strings.Contains(err.Error(), "no rows in result set") {
+			week, err = uc.weekService.LastGeneratedWeek(user.ID.String())
+			if err != nil {
+				httpErr := app.HTTPError{
+					Message: err.Error(),
+					Code:    http.StatusInternalServerError,
+				}
+				return c.JSON(http.StatusInternalServerError, httpErr)
+			}
+		} else {
+			httpErr := app.HTTPError{
+				Message: "failed to fetch week: " + err.Error(),
+				Code:    http.StatusInternalServerError,
+			}
+			return c.JSON(http.StatusInternalServerError, httpErr)
 		}
-		return c.JSON(http.StatusInternalServerError, httpErr)
 	}
 
 	allRecipes, err := uc.recipeService.Recipes()
@@ -359,6 +371,34 @@ func (uc *UserController) UpdateWeek(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, week)
+}
+func (uc *UserController) UpdateWeeks(c echo.Context) error {
+	user, err := getUser(uc, c)
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "failed to fetch user: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+	weeks := []*app.Week{}
+	if err = c.Bind(&weeks); err != nil {
+		httpErr := app.HTTPError{
+			Message: "failed to bind weeks: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(http.StatusBadRequest, httpErr)
+	}
+	weeks, err = uc.weekService.UpdateWeeks(weeks, user.ID.String())
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "failed to update weeks: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+
+	return c.JSON(http.StatusOK, weeks)
 }
 
 func getUser(uc *UserController, c echo.Context) (*app.User, error) {

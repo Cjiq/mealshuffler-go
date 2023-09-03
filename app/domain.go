@@ -97,6 +97,7 @@ type WeekService interface {
 	CreateWeeks(w []*NewWeek, userID string) ([]*Week, error)
 	DeleteWeek(id string, userID string) error
 	UpdateWeek(w *Week, userID string) (*Week, error)
+	UpdateWeeks(w []*Week, userID string) ([]*Week, error)
 	LastGeneratedWeek(userID string) (*Week, error)
 	DeleteWeeks(userID string, year int) error
 	NextWeekNumber(userID string) (int, error)
