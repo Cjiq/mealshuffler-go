@@ -163,6 +163,36 @@ func GenerateWeeks(startTime time.Time) []*Week {
 	return weeks
 }
 
+type DayWithRecipeSelectionMetadata struct {
+	Day                                  *Day
+	DistanceInDaysToDayToSelectRecipeFor int
+}
+
+func SelectRecipeForDay(day *Day, context []*Day) {
+	indexOfDay := FindIndexOf(context, day)
+}
+
+func CreateRecipeSelectionMetadataForDay(day *Day, dayToSelectRecipeFor *Day) *DayWithRecipeSelectionMetadata {
+	value := &DayWithRecipeSelectionMetadata{
+		Day:                                  day,
+		DistanceInDaysToDayToSelectRecipeFor: GetAbsoluteTimeDifferenceInDays(day.Date, dayToSelectRecipeFor.Date),
+	}
+	return value
+}
+
+func GetAbsoluteTimeDifferenceInDays(a time.Time, b time.Time) int {
+	return int(a.UTC().Sub(b.UTC()).Abs().Hours() / 24)
+}
+
+// func FindIndexOf[T any](array []*T, element *T) int {
+// 	for i, _element := range array {
+// 		if _element == element {
+// 			return i
+// 		}
+// 	}
+// 	return -1
+// }
+
 func SuggestnRandomRecipes(recipes []*Recipe, n int) []*Recipe {
 	var selectedRecipes []*Recipe
 	lastPickedRecipes := make([]*Recipe, 0, 5)
