@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -24,7 +23,10 @@ func NewUserService(db *sql.DB) *UserService {
 func (u *UserService) CreateUserTable() error {
 	query := `CREATE TABLE IF NOT EXISTS user (
 		id TEXT PRIMARY KEY,
-		name TEXT NOT NULL
+		name TEXT NOT NULL,
+		username TEXT UNIQUE NOT NULL,
+		token TEXT,
+		hash TEXT
 	);`
 	if _, err := u.db.Exec(query); err != nil {
 		return err
@@ -52,19 +54,19 @@ func (u *UserService) Users() ([]*app.User, error) {
 	return users, nil
 }
 
-func (u *UserService) CreateUser(newUser *app.NewUser) (*app.User, error) {
+func (u *UserService) CreateUser(newUser *app.NewUser, hash []byte) (*app.User, error) {
 	id := uuid.New()
 	tx, err := u.db.Begin()
 	if err != nil {
 		return nil, err
 	}
-	stmt, err := tx.Prepare("INSERT INTO user(name, id) VALUES(?,?)")
+	stmt, err := tx.Prepare("INSERT INTO user(name, username, id, hash) VALUES(?,?,?,?)")
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(newUser.Name, id.String())
+	_, err = stmt.Exec(newUser.Name, newUser.Username, id.String(), string(hash))
 	if err != nil {
 		return nil, err
 	}
@@ -191,21 +193,54 @@ func (us *UserService) UserWeeks(id string, startWeek int, weekCount int) ([]*ap
 	return weeks, nil
 }
 
-func (us *UserService) SaveUserWeeks(id string, weeks []*app.Week) error {
-	// tx, err := us.db.Begin()
-	// if err != nil {
-	// 	return err
-	// }
-	for _, w := range weeks {
-		// if err := us.saveWeek(tx, id, w); err != nil {
-		// 	return err
-		// }
-		jsonBytes, err := json.Marshal(w)
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(jsonBytes))
+func (us *UserService) ValidateUserToken(token string) (string, error) {
+	var resToken string
+	err := us.db.QueryRow("SELECT token FROM user WHERE token = ?", token).Scan(&resToken)
+	if err != nil {
+		return "", err
 	}
-	// tx.Commit()
+	if resToken == "" {
+		return "", fmt.Errorf("token is empty or not set")
+	}
+	return resToken, nil
+}
+
+func (us *UserService) SaveUserToken(id string, token string) error {
+	tx, err := us.db.Begin()
+	if err != nil {
+		return err
+	}
+	stmt, err := tx.Prepare("UPDATE user SET token = ? WHERE id = ?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	if _, err := stmt.Exec(token, id); err != nil {
+		return err
+	}
+	tx.Commit()
 	return nil
+}
+
+func (us *UserService) GetUserHash(username string) ([]byte, error) {
+	var hash string
+	err := us.db.QueryRow("SELECT hash FROM user WHERE username = ?", username).Scan(&hash)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(hash), nil
+}
+func (us *UserService) UserByUserName(username string) (*app.User, error) {
+	var idStr string
+	var user app.User
+	if err := us.db.QueryRow("SELECT id, name FROM user WHERE username = ?", username).Scan(&idStr, &user.Name); err != nil {
+		return nil, err
+	}
+	var err error
+	user.ID, err = uuid.Parse(idStr)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }

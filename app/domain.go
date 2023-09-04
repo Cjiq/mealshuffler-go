@@ -14,11 +14,14 @@ type Entity struct {
 }
 
 type NewUser struct {
-	Name string `json:"name,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 type User struct {
 	Weeks []*Week `json:"weeks,omitempty"`
+	token string
 	NewUser
 	Entity
 }
@@ -69,10 +72,14 @@ type HTTPError struct {
 type UserService interface {
 	User(id string) (*User, error)
 	Users() ([]*User, error)
-	CreateUser(u *NewUser) (*User, error)
+	CreateUser(u *NewUser, hash []byte) (*User, error)
 	DeleteUser(id string) error
 	UserWeeks(userID string, startWeek, skipWeek int) ([]*Week, error)
-	SaveUserWeeks(userID string, weeks []*Week) error
+	// SaveUserWeeks(userID string, weeks []*Week) error
+	ValidateUserToken(token string) (string, error)
+	SaveUserToken(userID string, token string) error
+	GetUserHash(userID string) ([]byte, error)
+	UserByUserName(username string) (*User, error)
 }
 type RecipeService interface {
 	// Recipe(id int) (*Recipe, error)
