@@ -63,13 +63,22 @@ func main() {
 	e.POST("/login", srv.login)
 
 	api := e.Group("/api")
-	api.Use(middleware.KeyAuth(func(key string, _ echo.Context) (bool, error) {
-		_, err := userService.ValidateUserToken(key)
-		if err != nil {
-			log.Println("error validating token: ", err)
-			return false, err
-		}
-		return true, nil
+	api.Use(middleware.KeyAuthWithConfig(middleware.KeyAuthConfig{
+		Validator: func(key string, _ echo.Context) (bool, error) {
+			_, err := userService.ValidateUserToken(key)
+			if err != nil {
+				log.Println("error validating token: ", err)
+				return false, err
+			}
+			return true, nil
+		},
+		ErrorHandler: func(err error, _ echo.Context) error {
+			httpErr := app.HTTPError{
+				Message: err.Error(),
+				Code:    http.StatusUnauthorized,
+			}
+			return echo.NewHTTPError(http.StatusUnauthorized, httpErr)
+		},
 	}))
 
 	api.GET("/users", userController.GetUsers)
