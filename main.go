@@ -81,6 +81,8 @@ func main() {
 		},
 	}))
 
+	api.GET("/ping", ping)
+
 	api.GET("/users", userController.GetUsers)
 	api.POST("/users", userController.CreateUser)
 	api.GET("/users/:id", userController.GetUser)
@@ -103,6 +105,10 @@ func main() {
 	api.DELETE("/users/:id/weeks/:year/all", weekController.DeleteWeeks)
 
 	e.Logger.Fatal(e.Start(":8080"))
+}
+
+func ping(c echo.Context) error {
+	return c.String(http.StatusOK, "pong")
 }
 
 func (s *server) login(c echo.Context) error {
@@ -161,9 +167,10 @@ func (s *server) login(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, httpErr)
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
+	return c.JSON(http.StatusOK, map[string]any{
 		"token":      newBearerToken,
 		"token_type": "bearer",
+		"user":       dbUser,
 	})
 }
 

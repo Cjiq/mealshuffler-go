@@ -273,6 +273,18 @@ func (uc *UserController) DeleteWeek(c echo.Context) error {
 		}
 		return c.JSON(http.StatusInternalServerError, httpErr)
 	}
+	nextWeekNumber, err := uc.weekService.NextWeekNumber(user.ID.String())
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+	if nextWeekNumber == 0 {
+		_, nextWeekNumber = time.Now().ISOWeek()
+	}
+	c.Response().Header().Set("X-Next-Week-Number", fmt.Sprintf("%d", nextWeekNumber))
 
 	return c.NoContent(http.StatusNoContent)
 }
