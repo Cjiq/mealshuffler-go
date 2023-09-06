@@ -80,6 +80,7 @@ type UserService interface {
 	SaveUserToken(userID string, token string) error
 	GetUserHash(userID string) ([]byte, error)
 	UserByUserName(username string) (*User, error)
+	GetUserToken(userID string) (string, error)
 }
 type RecipeService interface {
 	// Recipe(id int) (*Recipe, error)

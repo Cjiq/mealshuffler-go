@@ -83,10 +83,6 @@ func main() {
 
 	api.GET("/ping", ping)
 
-	api.GET("/users", userController.GetUsers)
-	api.POST("/users", userController.CreateUser)
-	api.GET("/users/:id", userController.GetUser)
-	api.DELETE("/users/:id", userController.DeleteUser)
 	api.GET("/users/:id/generate", userController.GenerateWeek)
 	api.POST("/users/:id/weeks", userController.SaveWeek)
 	api.DELETE("/users/:id/weeks/:weekID", userController.DeleteWeek)
@@ -103,6 +99,14 @@ func main() {
 	api.GET("/users/:id/weeks/:year", weekController.GetWeeks)
 	api.GET("/users/:id/weeks/last", weekController.GetLastGeneratedWeek)
 	api.DELETE("/users/:id/weeks/:year/all", weekController.DeleteWeeks)
+
+	admin := e.Group("/api/admin")
+	admin.Use(srv.AdminMiddleware)
+	admin.GET("/ping", ping)
+	admin.POST("/users", userController.CreateUser)
+	admin.GET("/users", userController.GetUsers)
+	admin.GET("/users/:id", userController.GetUser)
+	admin.DELETE("/users/:id", userController.DeleteUser)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }
@@ -208,4 +212,25 @@ func generateBearerToken(length int) (string, error) {
 	token = strings.TrimRight(token, "=")
 
 	return token, nil
+}
+func (s *server) AdminMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		token := c.Request().Header.Get("Authorization")
+		token = strings.TrimPrefix(token, "Bearer ")
+		adminToken, err := s.userService.GetUserToken("cjiq")
+		fmt.Printf("%s == %s", token, adminToken)
+		if err != nil {
+			httpErr := app.HTTPError{
+				Message: err.Error(),
+				Code:    http.StatusInternalServerError,
+			}
+			return c.JSON(http.StatusInternalServerError, httpErr)
+		}
+
+		if token != adminToken {
+			return c.String(http.StatusUnauthorized, "Unauthorized")
+		}
+		fmt.Println("==== ADMIN ACCESS ====")
+		return next(c)
+	}
 }

@@ -234,7 +234,7 @@ func (us *UserService) GetUserHash(username string) ([]byte, error) {
 func (us *UserService) UserByUserName(username string) (*app.User, error) {
 	var idStr string
 	var user app.User
-	if err := us.db.QueryRow("SELECT id, name FROM user WHERE username = ?", username).Scan(&idStr, &user.Name); err != nil {
+	if err := us.db.QueryRow("SELECT id, name, username FROM user WHERE username = ?", username).Scan(&idStr, &user.Name, &user.Username); err != nil {
 		return nil, err
 	}
 	var err error
@@ -243,4 +243,12 @@ func (us *UserService) UserByUserName(username string) (*app.User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+func (us *UserService) GetUserToken(user string) (string, error) {
+	var token string
+	err := us.db.QueryRow("SELECT token FROM user WHERE username = ?", user).Scan(&token)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
