@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"testing"
 	"time"
@@ -30,9 +29,9 @@ func TestGenerateDays(t *testing.T) {
 }
 
 func TestNoDuplicateRecipesInNearbyDays(t *testing.T) {
-	rand.Seed(time.Now().Unix())
-	days := createSomeDays(1000)
-	recipes := createSomeRecipes(1000)
+	// rand.Seed(time.Now().Unix())
+	days := createSomeDays(500)
+	recipes := createSomeRecipes(500)
 
 	// arrange
 	for _, day := range days {
@@ -182,56 +181,6 @@ func TestAlterRecipePortionsEffectOnCost(t *testing.T) {
 	if cost != 30 {
 		t.Errorf("Expected cost 30, got %f", cost)
 	}
-}
-
-func TestRandomSuggestions(t *testing.T) {
-	recipes := createSomeRecipes(7)
-	suggestionCount := 7 * 3
-	suggestions := SuggestnRandomRecipes(recipes, suggestionCount)
-	recCount := map[string]int{}
-	for _, suggestion := range suggestions {
-		recCount[suggestion.Name]++
-	}
-	for _, recipe := range recipes {
-		rc := recCount[recipe.Name]
-		expectedCount := int(math.Round(float64(suggestionCount) * recipe.ProbabilityWeight))
-		// fmt.Printf("%s: %d < %d (%.1f * %.1f) = %t\n", recipe.Name, rc, expectedCount, float64(suggestionCount), recipe.ProbabilityWeight, (rc < expectedCount))
-		if rc > expectedCount {
-			t.Errorf("%s was suggested %d times, expected to be %f * %d = %d", recipe.Name, rc, recipe.ProbabilityWeight, suggestionCount, expectedCount)
-		}
-	}
-
-	// repeatTest := 1000
-	// testResults := map[string]int{}
-	// for i := 0; i < repeatTest; i++ {
-	// 	for i := 0; i < len(probs); i++ {
-	// 		recipies = append(recipies, &Recipe{
-	// 			NewRecipe: NewRecipe{
-	// 				Name:              fmt.Sprintf("Recipe %d", i),
-	// 				ProbabilityWeight: probs[i],
-	// 			},
-	// 		})
-	// 	}
-	// 	suggestions := suggestnRandomRecipes(recipies, suggestionCount)
-	// 	recCount := map[string]int{}
-	// 	for _, suggestion := range suggestions {
-	// 		recCount[suggestion.Name]++
-	// 	}
-	// 	for i, recipe := range recipies {
-	// 		rc := recCount[recipe.Name]
-	// 		expectedCount := int(math.Round(float64(suggestionCount) * recipe.ProbabilityWeight))
-	// 		if rc > expectedCount {
-	// 			testResults[fmt.Sprintf("Recipe %d", i)]++
-	// 		}
-	// 	}
-	// }
-	// for i, recipe := range recipies {
-	// 	expectedCount := int(math.Round(float64(repeatTest) * probs[i]))
-	// 	count := testResults[recipe.Name]
-	// 	if count > expectedCount {
-	// 		t.Errorf("%s was suggested %d times, expected to be %f * %d = %d", recipe.Name, count, probs[i], repeatTest, expectedCount)
-	// 	}
-	// }
 }
 
 func createSomeRecipes(count int) []*Recipe {

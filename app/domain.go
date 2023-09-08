@@ -2,7 +2,6 @@ package app
 
 import (
 	"math"
-	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -191,7 +190,10 @@ func PickRecipeForDay(dayToSelectRecipeFor *Day, context []*Day, allRecipes []*R
 	getSelectionWeightMultiplier := func(recipe *Recipe) float64 {
 		const MAX_DIST_DAYS = 5
 		for _, day := range daysWithMetadata {
-			if day.Day.Dinner == recipe && day.DistanceInDaysToDayToSelectRecipeFor <= MAX_DIST_DAYS {
+			if day.Day.Dinner == nil {
+				continue
+			}
+			if day.Day.Dinner.Name == recipe.Name && day.DistanceInDaysToDayToSelectRecipeFor <= MAX_DIST_DAYS {
 				return 0
 			}
 		}
@@ -209,7 +211,6 @@ func PickRecipeForDay(dayToSelectRecipeFor *Day, context []*Day, allRecipes []*R
 	selectedRecipe := PickRandom(recipesWithMetadata, func(recipe *RecipeWithSelectionMetadata) float64 {
 		return recipe.SelectionWeight
 	})
-
 	return selectedRecipe.Recipe
 }
 
@@ -225,49 +226,6 @@ func GetAbsoluteTimeDifferenceInDays(a time.Time, b time.Time) int {
 	difference := a.UTC().Sub(b.UTC())
 	distanceInHours := math.Abs(difference.Hours())
 	return int(distanceInHours / 24)
-}
-
-// func FindIndexOf[T any](array []*T, element *T) int {
-// 	for i, _element := range array {
-// 		if _element == element {
-// 			return i
-// 		}
-// 	}
-// 	return -1
-// }
-
-func SuggestnRandomRecipes(recipes []*Recipe, n int) []*Recipe {
-	var selectedRecipes []*Recipe
-	lastPickedRecipes := make([]*Recipe, 0, 5)
-
-	for i := 0; i < n; i++ {
-		// Sort recipes by probability in descending order
-		sort.Slice(recipes, func(i, j int) bool {
-			return recipes[i].ProbabilityWeight > recipes[j].ProbabilityWeight
-		})
-
-		// Filter recipes that were picked in the last 5 selections
-		availableRecipes := make([]*Recipe, 0, len(recipes))
-		for _, recipe := range recipes {
-			if !containsRecipe(lastPickedRecipes, recipe) {
-				availableRecipes = append(availableRecipes, recipe)
-			}
-		}
-
-		// Choose a recipe based on probabilities
-		chosenRecipe := PickRandom(availableRecipes, func(recipe *Recipe) float64 {
-			return recipe.ProbabilityWeight
-		})
-
-		// Add the chosen recipe to the selected recipes and update lastPickedRecipes
-		selectedRecipes = append(selectedRecipes, chosenRecipe)
-		lastPickedRecipes = append(lastPickedRecipes, chosenRecipe)
-		if len(lastPickedRecipes) > 5 {
-			lastPickedRecipes = lastPickedRecipes[1:]
-		}
-	}
-
-	return selectedRecipes
 }
 
 func containsRecipe(recipes []*Recipe, target *Recipe) bool {

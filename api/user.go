@@ -132,19 +132,37 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 		weekNumber = backupWeek
 	}
 
-	days := app.GenerateDays(currentYear, weekNumber)
-	recipes, err := uc.recipeService.Recipes()
+	previousWeeks, err := uc.weekService.Weeks(user.ID.String(), currentYear)
 	if err != nil {
 		httpErr := app.HTTPError{
 			Message: err.Error(),
-			Code:    http.StatusBadRequest,
+			Code:    http.StatusInternalServerError,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
-	suggestedRecipes := app.SuggestnRandomRecipes(recipes, len(days))
-	for i, day := range days {
+	var days []*app.Day
+	for _, week := range previousWeeks {
+		if week.Number == weekNumber-1 {
+			days = week.Days
+		}
+	}
+
+	recipes, err := uc.recipeService.Recipes()
+
+	if len(days) == 0 {
+		days = app.GenerateDays(currentYear, weekNumber)
+		if err != nil {
+			httpErr := app.HTTPError{
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			}
+			return c.JSON(http.StatusBadRequest, httpErr)
+		}
+	}
+	// suggestedRecipes := app.SuggestnRandomRecipes(recipes, len(days))
+	for _, day := range days {
 		day.ID = uuid.New()
-		day.Dinner = suggestedRecipes[i]
+		day.Dinner = app.PickRecipeForDay(day, days, recipes)
 	}
 	weeks := []*app.Week{
 		{
@@ -321,8 +339,8 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpErr)
 	}
 	weekID := c.Param("weekID")
-	var recipe app.Recipe
-	if err = c.Bind(&recipe); err != nil {
+	var day *app.Day
+	if err = c.Bind(&day); err != nil {
 		httpErr := app.HTTPError{
 			Message: err.Error(),
 			Code:    http.StatusBadRequest,
@@ -340,6 +358,9 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 					Code:    http.StatusInternalServerError,
 				}
 				return c.JSON(http.StatusInternalServerError, httpErr)
+			}
+			for _, d := range week.Days {
+				fmt.Printf("%s\n", d.Dinner.Name)
 			}
 		} else {
 			httpErr := app.HTTPError{
@@ -359,22 +380,7 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, httpErr)
 	}
 
-	bannedRecipes := []*app.Recipe{}
-	bannedRecipes = append(bannedRecipes, &recipe)
-	for _, day := range week.Days {
-		bannedRecipes = append(bannedRecipes, day.Dinner)
-	}
-
-	recipes := []*app.Recipe{}
-	for _, r := range allRecipes {
-		for _, br := range bannedRecipes {
-			if r.Name != br.Name {
-				recipes = append(recipes, r)
-			}
-		}
-	}
-
-	newSuggestions := app.SuggestnRandomRecipes(recipes, 3)
+	newSuggestions := app.PickRecipeForDay(day, week.Days, allRecipes)
 
 	return c.JSON(http.StatusOK, newSuggestions)
 
