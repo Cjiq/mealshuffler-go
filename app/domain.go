@@ -1,7 +1,7 @@
 package app
 
 import (
-	"math/rand"
+	"math"
 	"sort"
 	"time"
 
@@ -168,11 +168,44 @@ type DayWithRecipeSelectionMetadata struct {
 	DistanceInDaysToDayToSelectRecipeFor int
 }
 
-func SelectRecipeForDay(day *Day, context []*Day) {
-	indexOfDay := FindIndexOf(context, day)
+type RecipeWithSelectionMetadata struct {
+	Recipe          *Recipe
+	SelectionWeight float64
 }
 
-func CreateRecipeSelectionMetadataForDay(day *Day, dayToSelectRecipeFor *Day) *DayWithRecipeSelectionMetadata {
+// todo: don't always pick the first recipe
+func PickRecipeForDay(dayToSelectRecipeFor *Day, context []*Day, allRecipes []*Recipe) *Recipe {
+	daysWithMetadata := make([]*DayWithRecipeSelectionMetadata, len(context))
+	for i, day := range context {
+		daysWithMetadata[i] = newRecipeSelectionMetadataForDay(day, dayToSelectRecipeFor)
+	}
+
+	getSelectionWeightMultiplier := func(recipe *Recipe) float64 {
+		const MAX_DIST_DAYS = 5
+		for _, day := range daysWithMetadata {
+			if day.Day.Dinner == recipe && day.DistanceInDaysToDayToSelectRecipeFor <= MAX_DIST_DAYS {
+				return 0
+			}
+		}
+		return 1
+	}
+
+	recipesWithMetadata := make([]*RecipeWithSelectionMetadata, len(allRecipes))
+	for i, recipe := range allRecipes {
+		recipesWithMetadata[i] = &RecipeWithSelectionMetadata{
+			Recipe:          recipe,
+			SelectionWeight: getSelectionWeightMultiplier(recipe) * recipe.ProbabilityWeight,
+		}
+	}
+
+	selectedRecipe := PickRandom(recipesWithMetadata, func(recipe *RecipeWithSelectionMetadata) float64 {
+		return recipe.SelectionWeight
+	})
+
+	return selectedRecipe.Recipe
+}
+
+func newRecipeSelectionMetadataForDay(day *Day, dayToSelectRecipeFor *Day) *DayWithRecipeSelectionMetadata {
 	value := &DayWithRecipeSelectionMetadata{
 		Day:                                  day,
 		DistanceInDaysToDayToSelectRecipeFor: GetAbsoluteTimeDifferenceInDays(day.Date, dayToSelectRecipeFor.Date),
@@ -181,7 +214,9 @@ func CreateRecipeSelectionMetadataForDay(day *Day, dayToSelectRecipeFor *Day) *D
 }
 
 func GetAbsoluteTimeDifferenceInDays(a time.Time, b time.Time) int {
-	return int(a.UTC().Sub(b.UTC()).Abs().Hours() / 24)
+	difference := a.UTC().Sub(b.UTC())
+	distanceInHours := math.Abs(difference.Hours())
+	return int(distanceInHours / 24)
 }
 
 // func FindIndexOf[T any](array []*T, element *T) int {
@@ -212,7 +247,9 @@ func SuggestnRandomRecipes(recipes []*Recipe, n int) []*Recipe {
 		}
 
 		// Choose a recipe based on probabilities
-		chosenRecipe := chooseRecipe(availableRecipes)
+		chosenRecipe := PickRandom(availableRecipes, func(recipe *Recipe) float64 {
+			return recipe.ProbabilityWeight
+		})
 
 		// Add the chosen recipe to the selected recipes and update lastPickedRecipes
 		selectedRecipes = append(selectedRecipes, chosenRecipe)
@@ -232,23 +269,4 @@ func containsRecipe(recipes []*Recipe, target *Recipe) bool {
 		}
 	}
 	return false
-}
-
-func chooseRecipe(recipes []*Recipe) *Recipe {
-	totalWeight := 0.0
-	for _, recipe := range recipes {
-		totalWeight += recipe.ProbabilityWeight
-	}
-
-	r := rand.Float64() * totalWeight
-	cumulativeWeight := 0.0
-
-	for _, recipe := range recipes {
-		cumulativeWeight += recipe.ProbabilityWeight
-		if r <= cumulativeWeight {
-			return recipe
-		}
-	}
-
-	return recipes[len(recipes)-1]
 }
