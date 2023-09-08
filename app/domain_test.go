@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"testing"
 	"time"
 )
@@ -26,6 +27,48 @@ func TestGenerateDays(t *testing.T) {
 			t.Errorf("Expected date %s, got %s", expectedDates[i], day.Date)
 		}
 	}
+}
+
+func TestNoDuplicateRecipesInNearbyDays(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+	days := createSomeDays(1000)
+	recipes := createSomeRecipes(1000)
+
+	// arrange
+	for _, day := range days {
+		recipe := PickRecipeForDay(day, days, recipes)
+		day.Dinner = recipe
+	}
+
+	assertDinnerIsDifferent := func(day1, day2 *Day) {
+		if day1.Dinner == day2.Dinner {
+			t.Errorf("Expected dinner of nearby day to be different from dinner of today")
+		}
+	}
+
+	// assert
+	for i, day := range days {
+		if i > 1 {
+			assertDinnerIsDifferent(day, days[i-1])
+		}
+		if i < len(days)-1 {
+			assertDinnerIsDifferent(day, days[i+1])
+		}
+
+	}
+}
+
+func createSomeDays(count int) []*Day {
+	START_DATE := time.Now()
+
+	days := make([]*Day, count)
+	for i := range days {
+		days[i] = &Day{
+			Date: START_DATE.AddDate(0, 0, i),
+		}
+	}
+
+	return days
 }
 
 func TestGenerateWeeks(t *testing.T) {
@@ -142,18 +185,8 @@ func TestAlterRecipePortionsEffectOnCost(t *testing.T) {
 }
 
 func TestRandomSuggestions(t *testing.T) {
-	probs := []float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7}
+	recipes := createSomeRecipes(7)
 	suggestionCount := 7 * 3
-	var recipes []*Recipe
-
-	for i := 0; i < len(probs); i++ {
-		recipes = append(recipes, &Recipe{
-			NewRecipe: NewRecipe{
-				Name:              fmt.Sprintf("Recipe %d", i),
-				ProbabilityWeight: probs[i],
-			},
-		})
-	}
 	suggestions := SuggestnRandomRecipes(recipes, suggestionCount)
 	recCount := map[string]int{}
 	for _, suggestion := range suggestions {
@@ -199,4 +232,22 @@ func TestRandomSuggestions(t *testing.T) {
 	// 		t.Errorf("%s was suggested %d times, expected to be %f * %d = %d", recipe.Name, count, probs[i], repeatTest, expectedCount)
 	// 	}
 	// }
+}
+
+func createSomeRecipes(count int) []*Recipe {
+	weights := make([]float64, count)
+	for i := range weights {
+		weights[i] = rand.Float64()
+	}
+
+	recipes := make([]*Recipe, count)
+	for i := range recipes {
+		recipes[i] = &Recipe{
+			NewRecipe: NewRecipe{
+				Name:              fmt.Sprintf("Recipe %d", i),
+				ProbabilityWeight: weights[i],
+			},
+		}
+	}
+	return recipes
 }
