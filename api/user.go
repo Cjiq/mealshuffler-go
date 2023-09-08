@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"golang.org/x/crypto/bcrypt"
 
 	"nrdev.se/mealshuffler/app"
 )
@@ -35,18 +36,41 @@ func (uc *UserController) GetUsers(c echo.Context) error {
 }
 
 func (uc *UserController) CreateUser(c echo.Context) error {
-	newUser := app.NewUser{}
+	var newUser app.NewUser
 
-	var json map[string]interface{}
-
-	if err := c.Bind(&json); err != nil {
+	if err := c.Bind(&newUser); err != nil {
 		return c.String(http.StatusBadRequest, err.Error())
 	}
-	if _, ok := json["name"]; !ok {
-		return c.String(http.StatusBadRequest, "JSON body must contain 'name'")
+	if newUser.Name == "" {
+		httpErr := app.HTTPError{
+			Message: "name is required",
+			Code:    http.StatusUnprocessableEntity,
+		}
+		return c.JSON(http.StatusUnprocessableEntity, httpErr)
 	}
-	newUser.Name = json["name"].(string)
-	user, err := uc.userService.CreateUser(&newUser)
+	if newUser.Username == "" {
+		httpErr := app.HTTPError{
+			Message: "username is required",
+			Code:    http.StatusUnprocessableEntity,
+		}
+		return c.JSON(http.StatusUnprocessableEntity, httpErr)
+	}
+	if newUser.Password == "" {
+		httpErr := app.HTTPError{
+			Message: "password is required",
+			Code:    http.StatusUnprocessableEntity,
+		}
+		return c.JSON(http.StatusUnprocessableEntity, httpErr)
+	}
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), 14)
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "failed to hash password",
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+	user, err := uc.userService.CreateUser(&newUser, newHash)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "Error: "+err.Error())
 	}
@@ -249,6 +273,18 @@ func (uc *UserController) DeleteWeek(c echo.Context) error {
 		}
 		return c.JSON(http.StatusInternalServerError, httpErr)
 	}
+	nextWeekNumber, err := uc.weekService.NextWeekNumber(user.ID.String())
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(http.StatusInternalServerError, httpErr)
+	}
+	if nextWeekNumber == 0 {
+		_, nextWeekNumber = time.Now().ISOWeek()
+	}
+	c.Response().Header().Set("X-Next-Week-Number", fmt.Sprintf("%d", nextWeekNumber))
 
 	return c.NoContent(http.StatusNoContent)
 }
