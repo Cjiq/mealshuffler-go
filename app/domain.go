@@ -26,11 +26,12 @@ type User struct {
 }
 
 type NewRecipe struct {
-	Name              string  `json:"name,omitempty"`
-	Items             []*Item `json:"items,omitempty"`
-	ProbabilityWeight float64 `json:"probability_weight,omitempty"`
-	Portions          int     `json:"portions,omitempty"`
-	URL               string  `json:"url,omitempty"`
+	Name               string  `json:"name,omitempty"`
+	Items              []*Item `json:"items,omitempty"`
+	ProbabilityWeight  float64 `json:"probability_weight,omitempty"`
+	Portions           int     `json:"portions,omitempty"`
+	URL                string  `json:"url,omitempty"`
+	LeftOverCompliance bool    `json:"left_over_compliance,omitempty"`
 }
 
 type Recipe struct {
@@ -84,8 +85,9 @@ type UserService interface {
 type RecipeService interface {
 	// Recipe(id int) (*Recipe, error)
 	Recipes() ([]*Recipe, error)
-	CreateRecipe(rs *NewRecipe) (*Recipe, error)
+	CreateRecipe(rs *NewRecipe, userID string) (*Recipe, error)
 	UpdateRecipe(rs *Recipe) (*Recipe, error)
+	UserRecipes(userID string) ([]*Recipe, error)
 	// DeleteRecipe(id int) error
 	// UserRecipes(userID int) ([]*Recipe, error)
 	DeleteAllRecipes() error
@@ -182,6 +184,9 @@ type RecipeWithSelectionMetadata struct {
 
 // todo: don't always pick the first recipe
 func PickRecipeForDay(dayToSelectRecipeFor *Day, context []*Day, allRecipes []*Recipe) *Recipe {
+	if len(allRecipes) == 0 {
+		panic("Cannot pick recipe from empty slice (allRecipes)")
+	}
 	daysWithMetadata := make([]*DayWithRecipeSelectionMetadata, len(context))
 	for i, day := range context {
 		daysWithMetadata[i] = newRecipeSelectionMetadataForDay(day, dayToSelectRecipeFor)

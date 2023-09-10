@@ -30,7 +30,11 @@ func NewUserController(userService app.UserService, recipeService app.RecipeServ
 func (uc *UserController) GetUsers(c echo.Context) error {
 	users, err := uc.userService.Users()
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Error: "+err.Error())
+		httpErr := app.HTTPError{
+			Message: "Error: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	return c.JSON(http.StatusOK, users)
 }
@@ -39,28 +43,32 @@ func (uc *UserController) CreateUser(c echo.Context) error {
 	var newUser app.NewUser
 
 	if err := c.Bind(&newUser); err != nil {
-		return c.String(http.StatusBadRequest, err.Error())
+		httpErr := app.HTTPError{
+			Message: "Error: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	if newUser.Name == "" {
 		httpErr := app.HTTPError{
 			Message: "name is required",
 			Code:    http.StatusUnprocessableEntity,
 		}
-		return c.JSON(http.StatusUnprocessableEntity, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	if newUser.Username == "" {
 		httpErr := app.HTTPError{
 			Message: "username is required",
 			Code:    http.StatusUnprocessableEntity,
 		}
-		return c.JSON(http.StatusUnprocessableEntity, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	if newUser.Password == "" {
 		httpErr := app.HTTPError{
 			Message: "password is required",
 			Code:    http.StatusUnprocessableEntity,
 		}
-		return c.JSON(http.StatusUnprocessableEntity, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	newHash, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), 14)
 	if err != nil {
@@ -68,11 +76,15 @@ func (uc *UserController) CreateUser(c echo.Context) error {
 			Message: "failed to hash password",
 			Code:    http.StatusInternalServerError,
 		}
-		return c.JSON(http.StatusInternalServerError, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	user, err := uc.userService.CreateUser(&newUser, newHash)
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Error: "+err.Error())
+		httpErr := app.HTTPError{
+			Message: "Error: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	return c.JSON(http.StatusOK, user)
 }
@@ -147,17 +159,24 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 		}
 	}
 
-	recipes, err := uc.recipeService.Recipes()
+	recipes, err := uc.recipeService.UserRecipes(user.ID.String())
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
+	if len(recipes) == 0 {
+		httpErr := app.HTTPError{
+			Message: "no recipes found to generate from",
+			Code:    http.StatusNotFound,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
 
 	if len(days) == 0 {
 		days = app.GenerateDays(currentYear, weekNumber)
-		if err != nil {
-			httpErr := app.HTTPError{
-				Message: err.Error(),
-				Code:    http.StatusBadRequest,
-			}
-			return c.JSON(http.StatusBadRequest, httpErr)
-		}
 	}
 	// suggestedRecipes := app.SuggestnRandomRecipes(recipes, len(days))
 	for _, day := range days {
@@ -348,6 +367,7 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, httpErr)
 	}
 	var week *app.Week
+	isLastGenerated := false
 	week, err = uc.weekService.Week(weekID, user.ID.String())
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows in result set") {
@@ -359,6 +379,7 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 				}
 				return c.JSON(http.StatusInternalServerError, httpErr)
 			}
+			isLastGenerated = true
 			for _, d := range week.Days {
 				fmt.Printf("%s\n", d.Dinner.Name)
 			}
@@ -377,12 +398,28 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 			Message: "failed to fetch recipes: " + err.Error(),
 			Code:    http.StatusInternalServerError,
 		}
-		return c.JSON(http.StatusInternalServerError, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 
-	newSuggestions := app.PickRecipeForDay(day, week.Days, allRecipes)
+	newSuggestion := app.PickRecipeForDay(day, week.Days, allRecipes)
 
-	return c.JSON(http.StatusOK, newSuggestions)
+	if isLastGenerated {
+		for _, d := range week.Days {
+			if d.ID == day.ID {
+				d.Dinner = newSuggestion
+			}
+		}
+		_, err = uc.weekService.UpdateWeek(week, user.ID.String())
+		if err != nil {
+			httpErr := app.HTTPError{
+				Message: "failed to update week: " + err.Error(),
+				Code:    http.StatusInternalServerError,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
+	}
+
+	return c.JSON(http.StatusOK, newSuggestion)
 
 }
 

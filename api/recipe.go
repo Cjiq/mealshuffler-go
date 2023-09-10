@@ -19,50 +19,60 @@ func NewRecipeController(recipeService app.RecipeService) *RecipeController {
 func (rc *RecipeController) GetRecipes(c echo.Context) error {
 	recipes, err := rc.recipeService.Recipes()
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Error: "+err.Error())
+		httpErr := app.HTTPError{
+			Message: "Error: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	return c.JSON(http.StatusOK, recipes)
 }
 
 func (rc *RecipeController) CreateRecipe(c echo.Context) error {
 	var newRecipe app.NewRecipe
-	var json map[string]interface{}
-	if err := c.Bind(&json); err != nil {
+	if err := c.Bind(&newRecipe); err != nil {
 		return c.String(http.StatusBadRequest, "Error: "+err.Error())
 	}
-	if json["name"] == nil {
+	if newRecipe.Name == "" {
 		httpErr := app.HTTPError{
 			Message: "name is required",
 			Code:    http.StatusUnprocessableEntity,
 		}
 		return c.JSON(http.StatusUnprocessableEntity, httpErr)
-	} else {
-		newRecipe.Name = json["name"].(string)
 	}
-	if json["probability_weight"] == nil {
+	if newRecipe.ProbabilityWeight == 0 {
 		httpErr := app.HTTPError{
 			Message: "probability_weight is required",
 			Code:    http.StatusUnprocessableEntity,
 		}
 		return c.JSON(http.StatusUnprocessableEntity, httpErr)
-	} else {
-		newRecipe.ProbabilityWeight = json["probability_weight"].(float64)
 	}
-	if json["portions"] == nil {
+	if newRecipe.Portions == 0 {
 		httpErr := app.HTTPError{
 			Message: "portions is required",
 			Code:    http.StatusUnprocessableEntity,
 		}
 		return c.JSON(http.StatusUnprocessableEntity, httpErr)
-	} else {
-		newRecipe.Portions = int(json["portions"].(float64))
+	}
+	userID := c.Param("id")
+	if userID == "" {
+		httpErr := app.HTTPError{
+			Message: "userID is required",
+			Code:    http.StatusUnprocessableEntity,
+		}
+		return c.JSON(httpErr.Code, httpErr)
 	}
 
-	recipe, err := rc.recipeService.CreateRecipe(&newRecipe)
+	recipe, err := rc.recipeService.CreateRecipe(&newRecipe, userID)
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Error: "+err.Error())
+		httpErr := app.HTTPError{
+			Message: "Error: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
 	}
-	return c.JSON(http.StatusOK, recipe)
+	c.Response().Header().Set("Location", "/recipes/"+recipe.ID.String())
+	return c.JSON(http.StatusCreated, recipe)
 }
 
 func (rc *RecipeController) DeleteRecipes(c echo.Context) error {

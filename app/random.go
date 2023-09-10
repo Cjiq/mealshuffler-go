@@ -5,6 +5,10 @@ import (
 )
 
 func PickRandom[T any](alternatives []*T, weightSelector func(*T) float64) *T {
+	if len(alternatives) == 0 {
+		panic("Cannot pick random from empty slice")
+	}
+
 	totalWeight := 0.0
 	for _, alternative := range alternatives {
 		totalWeight += weightSelector(alternative)
