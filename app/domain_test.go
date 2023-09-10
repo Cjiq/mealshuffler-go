@@ -26,10 +26,27 @@ func TestGenerateDays(t *testing.T) {
 			t.Errorf("Expected date %s, got %s", expectedDates[i], day.Date)
 		}
 	}
+	days = GenerateDays(2023, 36)
+	if len(days) != 7 {
+		t.Errorf("Expected 7 days, got %d", len(days))
+	}
+	expectedDates = []string{
+		"2023-09-04",
+		"2023-09-05",
+		"2023-09-06",
+		"2023-09-07",
+		"2023-09-08",
+		"2023-09-09",
+		"2023-09-10",
+	}
+	for i, day := range days {
+		if day.Date.Format("2006-01-02") != expectedDates[i] {
+			t.Errorf("Expected date %s, got %s", expectedDates[i], day.Date)
+		}
+	}
 }
 
 func TestNoDuplicateRecipesInNearbyDays(t *testing.T) {
-	// rand.Seed(time.Now().Unix())
 	days := createSomeDays(500)
 	recipes := createSomeRecipes(500)
 

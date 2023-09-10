@@ -152,10 +152,10 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 		}
 		return c.JSON(httpErr.Code, httpErr)
 	}
-	var days []*app.Day
+	var prevDays []*app.Day
 	for _, week := range previousWeeks {
 		if week.Number == weekNumber-1 {
-			days = week.Days
+			prevDays = week.Days
 		}
 	}
 
@@ -175,13 +175,10 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 		return c.JSON(httpErr.Code, httpErr)
 	}
 
-	if len(days) == 0 {
-		days = app.GenerateDays(currentYear, weekNumber)
-	}
-	// suggestedRecipes := app.SuggestnRandomRecipes(recipes, len(days))
+	days := app.GenerateDays(currentYear, weekNumber)
 	for _, day := range days {
 		day.ID = uuid.New()
-		day.Dinner = app.PickRecipeForDay(day, days, recipes)
+		day.Dinner = app.PickRecipeForDay(day, append(prevDays, days...), recipes)
 	}
 	weeks := []*app.Week{
 		{
