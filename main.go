@@ -42,6 +42,24 @@ func main() {
 	e.Use(middleware.Gzip())
 	e.Use(middleware.CORSWithConfig(corsConfig))
 	e.Use(checkRequestContentTypeJSON)
+	e.HTTPErrorHandler = func(err error, c echo.Context) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println("panic in HTTPErrorHandler: ", r)
+				httpErr := app.HTTPError{
+					Message: "internal server error",
+					Code:    http.StatusInternalServerError,
+				}
+				c.JSON(http.StatusInternalServerError, httpErr)
+				panic(r)
+			}
+		}()
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    err.(*echo.HTTPError).Code,
+		}
+		c.JSON(http.StatusInternalServerError, httpErr)
+	}
 
 	db, err := sqlite.NewDB()
 	if err != nil {

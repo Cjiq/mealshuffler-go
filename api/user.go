@@ -30,6 +30,13 @@ func NewUserController(userService app.UserService, recipeService app.RecipeServ
 func (uc *UserController) GetUsers(c echo.Context) error {
 	users, err := uc.userService.Users()
 	if err != nil {
+		if strings.Contains(err.Error(), "no rows in result set") {
+			httpErr := app.HTTPError{
+				Message: "no users found",
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
 		httpErr := app.HTTPError{
 			Message: "Error: " + err.Error(),
 			Code:    http.StatusInternalServerError,
@@ -81,7 +88,27 @@ func (uc *UserController) CreateUser(c echo.Context) error {
 	user, err := uc.userService.CreateUser(&newUser, newHash)
 	if err != nil {
 		httpErr := app.HTTPError{
-			Message: "Error: " + err.Error(),
+			Message: "error: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
+	c.Response().Header().Set("Location", fmt.Sprintf("/users/%s", user.ID))
+	return c.JSON(http.StatusOK, user)
+}
+
+func (uc *UserController) GetUser(c echo.Context) error {
+	user, err := getUser(uc, c)
+	if err != nil {
+		if strings.Contains(err.Error(), "failed to fetch user") {
+			httpErr := app.HTTPError{
+				Message: fmt.Sprintf("user with id %s not found", c.Param("id")),
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
+		httpErr := app.HTTPError{
+			Message: err.Error(),
 			Code:    http.StatusInternalServerError,
 		}
 		return c.JSON(httpErr.Code, httpErr)
@@ -89,27 +116,38 @@ func (uc *UserController) CreateUser(c echo.Context) error {
 	return c.JSON(http.StatusOK, user)
 }
 
-func (uc *UserController) GetUser(c echo.Context) error {
-	user, err := getUser(uc, c)
-	if err != nil {
-		httpErr := app.HTTPError{
-			Message: err.Error(),
-			Code:    http.StatusBadRequest,
-		}
-		return c.JSON(http.StatusBadRequest, httpErr)
-	}
-	return c.JSON(http.StatusOK, user)
-}
-
 func (uc *UserController) DeleteUser(c echo.Context) error {
-	id := c.Param("id")
-	err := uc.userService.DeleteUser(id)
+	_, err := getUser(uc, c)
 	if err != nil {
+		if strings.Contains(err.Error(), "failed to fetch user") {
+			httpErr := app.HTTPError{
+				Message: fmt.Sprintf("user with id %s not found", c.Param("id")),
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
 		httpErr := app.HTTPError{
 			Message: err.Error(),
 			Code:    http.StatusBadRequest,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
+	}
+
+	id := c.Param("id")
+	err = uc.userService.DeleteUser(id)
+	if err != nil {
+		if strings.Contains(err.Error(), "failed to delete user") {
+			httpErr := app.HTTPError{
+				Message: err.Error(),
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
+		httpErr := app.HTTPError{
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -118,11 +156,18 @@ func (uc *UserController) DeleteUser(c echo.Context) error {
 func (uc *UserController) GenerateWeek(c echo.Context) error {
 	user, err := getUser(uc, c)
 	if err != nil {
+		if strings.Contains(err.Error(), "failed to fetch user") {
+			httpErr := app.HTTPError{
+				Message: fmt.Sprintf("user with id %s not found", c.Param("id")),
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
 		httpErr := app.HTTPError{
 			Message: err.Error(),
 			Code:    http.StatusBadRequest,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	weekNumber := -1
 	now := time.Now()
@@ -136,8 +181,7 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 				Message: err.Error(),
 				Code:    http.StatusInternalServerError,
 			}
-
-			return c.JSON(http.StatusInternalServerError, httpErr)
+			return c.JSON(httpErr.Code, httpErr)
 		}
 	}
 	if weekNumber == 0 {
@@ -214,7 +258,7 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 					Message: err.Error(),
 					Code:    http.StatusInternalServerError,
 				}
-				return c.JSON(http.StatusInternalServerError, httpErr)
+				return c.JSON(httpErr.Code, httpErr)
 			}
 		}
 	}
@@ -225,7 +269,7 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 			Message: err.Error(),
 			Code:    http.StatusInternalServerError,
 		}
-		return c.JSON(http.StatusInternalServerError, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	return c.JSON(http.StatusOK, weeks)
 }
@@ -233,11 +277,18 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 func (uc *UserController) SaveWeek(c echo.Context) error {
 	user, err := getUser(uc, c)
 	if err != nil {
+		if strings.Contains(err.Error(), "failed to fetch user") {
+			httpErr := app.HTTPError{
+				Message: fmt.Sprintf("user with id %s not found", c.Param("id")),
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
 		httpErr := app.HTTPError{
 			Message: err.Error(),
 			Code:    http.StatusBadRequest,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 
 	weeks := []*app.NewWeek{}
@@ -247,7 +298,7 @@ func (uc *UserController) SaveWeek(c echo.Context) error {
 			Message: err.Error(),
 			Code:    http.StatusBadRequest,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 
 	if len(weeks) == 0 {
@@ -255,16 +306,17 @@ func (uc *UserController) SaveWeek(c echo.Context) error {
 			Message: "no weeks to save",
 			Code:    http.StatusBadRequest,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
-	for _, week := range weeks {
-		if week.Number == 0 || week.Number > 52 {
-			httpErr := app.HTTPError{
-				Message: "number need to be set between 1 and 52",
-				Code:    http.StatusUnprocessableEntity,
-			}
-			return c.JSON(http.StatusUnprocessableEntity, httpErr)
+
+	valdationErrors := validateNewWeeks(weeks)
+	if len(valdationErrors) > 0 {
+		httpErr := app.HTTPError{
+			Message: "weeks validation failed",
+			Code:    http.StatusUnprocessableEntity,
+			Context: valdationErrors,
 		}
+		return c.JSON(httpErr.Code, httpErr)
 	}
 
 	dbWeeks, err := uc.weekService.CreateWeeks(weeks, user.ID.String())
@@ -273,39 +325,44 @@ func (uc *UserController) SaveWeek(c echo.Context) error {
 			Message: err.Error(),
 			Code:    http.StatusInternalServerError,
 		}
-		return c.JSON(http.StatusInternalServerError, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 
-	// nextWeekNumber, err := uc.weekService.NextWeekNumber(user.ID.String())
-	// if err != nil {
-	// 	httpErr := app.HTTPError{
-	// 		Message: err.Error(),
-	// 		Code:    http.StatusInternalServerError,
-	// 	}
-	// 	return c.JSON(http.StatusInternalServerError, httpErr)
-	// }
-	// c.Response().Header().Set("X-Next-Week-Number", fmt.Sprintf("%d", nextWeekNumber))
-
+	c.Response().Header().Set("Location", fmt.Sprintf("/users/%s/weeks", user.ID))
 	return c.JSON(http.StatusCreated, dbWeeks)
 }
 
 func (uc *UserController) DeleteWeek(c echo.Context) error {
 	user, err := getUser(uc, c)
 	if err != nil {
+		if strings.Contains(err.Error(), "failed to fetch user") {
+			httpErr := app.HTTPError{
+				Message: fmt.Sprintf("user with id %s not found", c.Param("id")),
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
 		httpErr := app.HTTPError{
 			Message: err.Error(),
 			Code:    http.StatusBadRequest,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	weekID := c.Param("weekID")
 	err = uc.weekService.DeleteWeek(weekID, user.ID.String())
 	if err != nil {
+		if strings.Contains(err.Error(), "failed to delete week") {
+			httpErr := app.HTTPError{
+				Message: err.Error(),
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
 		httpErr := app.HTTPError{
 			Message: err.Error(),
 			Code:    http.StatusInternalServerError,
 		}
-		return c.JSON(http.StatusInternalServerError, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	nextWeekNumber, err := uc.weekService.NextWeekNumber(user.ID.String())
 	if err != nil {
@@ -313,7 +370,7 @@ func (uc *UserController) DeleteWeek(c echo.Context) error {
 			Message: err.Error(),
 			Code:    http.StatusInternalServerError,
 		}
-		return c.JSON(http.StatusInternalServerError, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	if nextWeekNumber == 0 {
 		_, nextWeekNumber = time.Now().ISOWeek()
@@ -326,11 +383,18 @@ func (uc *UserController) DeleteWeek(c echo.Context) error {
 func (uc *UserController) NextWeekNumber(c echo.Context) error {
 	user, err := getUser(uc, c)
 	if err != nil {
+		if strings.Contains(err.Error(), "failed to fetch user") {
+			httpErr := app.HTTPError{
+				Message: fmt.Sprintf("user with id %s not found", c.Param("id")),
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
 		httpErr := app.HTTPError{
 			Message: err.Error(),
 			Code:    http.StatusBadRequest,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 
 	nextWeekNumber, err := uc.weekService.NextWeekNumber(user.ID.String())
@@ -339,7 +403,7 @@ func (uc *UserController) NextWeekNumber(c echo.Context) error {
 			Message: err.Error(),
 			Code:    http.StatusInternalServerError,
 		}
-		return c.JSON(http.StatusInternalServerError, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 
 	return c.JSON(http.StatusOK, nextWeekNumber)
@@ -352,7 +416,7 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 			Message: err.Error(),
 			Code:    http.StatusBadRequest,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	weekID := c.Param("weekID")
 	var day *app.Day
@@ -361,7 +425,7 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 			Message: err.Error(),
 			Code:    http.StatusBadRequest,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	var week *app.Week
 	isLastGenerated := false
@@ -374,7 +438,7 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 					Message: err.Error(),
 					Code:    http.StatusInternalServerError,
 				}
-				return c.JSON(http.StatusInternalServerError, httpErr)
+				return c.JSON(httpErr.Code, httpErr)
 			}
 			isLastGenerated = true
 			for _, d := range week.Days {
@@ -385,7 +449,7 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 				Message: "failed to fetch week: " + err.Error(),
 				Code:    http.StatusInternalServerError,
 			}
-			return c.JSON(http.StatusInternalServerError, httpErr)
+			return c.JSON(httpErr.Code, httpErr)
 		}
 	}
 
@@ -423,19 +487,62 @@ func (uc *UserController) GenerateRecipeAlternative(c echo.Context) error {
 func (uc *UserController) UpdateWeek(c echo.Context) error {
 	user, err := getUser(uc, c)
 	if err != nil {
+		if strings.Contains(err.Error(), "failed to fetch user") {
+			httpErr := app.HTTPError{
+				Message: fmt.Sprintf("user with id %s not found", c.Param("id")),
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
 		httpErr := app.HTTPError{
 			Message: "failed to fetch user: " + err.Error(),
 			Code:    http.StatusBadRequest,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
+	}
+	_, err = uc.weekService.Week(c.Param("weekID"), user.ID.String())
+	if err != nil {
+		if strings.Contains(err.Error(), "failed to fetch week") {
+			httpErr := app.HTTPError{
+				Message: fmt.Sprintf("week with id %s not found", c.Param("weekID")),
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
+		httpErr := app.HTTPError{
+			Message: "failed to fetch week: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	week := &app.Week{}
 	if err = c.Bind(week); err != nil {
 		httpErr := app.HTTPError{
-			Message: "failed to bind week: " + err.Error(),
+			Message: "failed to parse week: " + err.Error(),
 			Code:    http.StatusBadRequest,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
+	}
+	if week.Number == 0 || week.Number > 52 {
+		httpErr := app.HTTPError{
+			Message: "number need to be set between 1 and 52",
+			Code:    http.StatusUnprocessableEntity,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
+	if week.Year == 0 {
+		httpErr := app.HTTPError{
+			Message: "year need to be set",
+			Code:    http.StatusUnprocessableEntity,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
+	if len(week.Days) == 0 {
+		httpErr := app.HTTPError{
+			Message: "days need to be set",
+			Code:    http.StatusUnprocessableEntity,
+		}
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	week, err = uc.weekService.UpdateWeek(week, user.ID.String())
 	if err != nil {
@@ -443,19 +550,27 @@ func (uc *UserController) UpdateWeek(c echo.Context) error {
 			Message: "failed to update week: " + err.Error(),
 			Code:    http.StatusInternalServerError,
 		}
-		return c.JSON(http.StatusInternalServerError, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 
 	return c.JSON(http.StatusOK, week)
 }
+
 func (uc *UserController) UpdateWeeks(c echo.Context) error {
 	user, err := getUser(uc, c)
 	if err != nil {
+		if strings.Contains(err.Error(), "failed to fetch user") {
+			httpErr := app.HTTPError{
+				Message: fmt.Sprintf("user with id %s not found", c.Param("id")),
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
 		httpErr := app.HTTPError{
 			Message: "failed to fetch user: " + err.Error(),
-			Code:    http.StatusBadRequest,
+			Code:    http.StatusInternalServerError,
 		}
-		return c.JSON(http.StatusBadRequest, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 	weeks := []*app.Week{}
 	if err = c.Bind(&weeks); err != nil {
@@ -465,13 +580,31 @@ func (uc *UserController) UpdateWeeks(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, httpErr)
 	}
+	if len(weeks) == 0 {
+		httpErr := app.HTTPError{
+			Message: "no weeks to update",
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
+
+	valdationErrors := validateWeeks(weeks)
+	if len(valdationErrors) > 0 {
+		httpErr := app.HTTPError{
+			Message: "weeks validation failed",
+			Code:    http.StatusUnprocessableEntity,
+			Context: valdationErrors,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
+
 	weeks, err = uc.weekService.UpdateWeeks(weeks, user.ID.String())
 	if err != nil {
 		httpErr := app.HTTPError{
 			Message: "failed to update weeks: " + err.Error(),
 			Code:    http.StatusInternalServerError,
 		}
-		return c.JSON(http.StatusInternalServerError, httpErr)
+		return c.JSON(httpErr.Code, httpErr)
 	}
 
 	return c.JSON(http.StatusOK, weeks)
@@ -485,4 +618,48 @@ func getUser(uc *UserController, c echo.Context) (*app.User, error) {
 		return nil, fmt.Errorf("failed to fetch user, got: %s", err.Error())
 	}
 	return user, nil
+}
+
+func validateNewWeeks(weeks []*app.NewWeek) []app.ValidationError {
+	errors := []app.ValidationError{}
+	for _, week := range weeks {
+		err := app.ValidationError{
+			Context: fmt.Sprintf("week %d", week.Number),
+			Errors:  []string{},
+		}
+		if week.Number == 0 || week.Number > 52 {
+			err.Errors = append(err.Errors, "number need to be set between 1 and 52")
+		}
+		if week.Year == 0 {
+			err.Errors = append(err.Errors, "year need to be set")
+		}
+		if len(week.Days) == 0 {
+			err.Errors = append(err.Errors, "days need to be set")
+		}
+		errors = append(errors, err)
+	}
+
+	return errors
+}
+
+func validateWeeks(weeks []*app.Week) []app.ValidationError {
+	errors := []app.ValidationError{}
+	for _, week := range weeks {
+		err := app.ValidationError{
+			Context: fmt.Sprintf("week %d", week.Number),
+			Errors:  []string{},
+		}
+		if week.Number == 0 || week.Number > 52 {
+			err.Errors = append(err.Errors, "number need to be set between 1 and 52")
+		}
+		if week.Year == 0 {
+			err.Errors = append(err.Errors, "year need to be set")
+		}
+		if len(week.Days) == 0 {
+			err.Errors = append(err.Errors, "days need to be set")
+		}
+		errors = append(errors, err)
+	}
+
+	return errors
 }

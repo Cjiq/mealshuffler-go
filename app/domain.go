@@ -67,6 +67,12 @@ type Day struct {
 type HTTPError struct {
 	Message string `json:"message,omitempty"`
 	Code    int    `json:"code,omitempty"`
+	Context any    `json:"context,omitempty"`
+}
+
+type ValidationError struct {
+	Context string
+	Errors  []string
 }
 
 type UserService interface {
