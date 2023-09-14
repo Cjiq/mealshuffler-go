@@ -108,6 +108,7 @@ func main() {
 	api.POST("/users/:id/weeks/:weekID/suggest", userController.GenerateRecipeAlternative)
 	api.PUT("/users/:id/weeks/:weekID", userController.UpdateWeek)
 	api.PUT("/users/:id/weeks", userController.UpdateWeeks)
+	api.PUT("/users/:id/weeks/shuffle", userController.ShuffleWeekRecipes)
 	api.POST("/users/:id/recipes", recipeController.CreateRecipe)
 
 	api.GET("/recipes", recipeController.GetRecipes)

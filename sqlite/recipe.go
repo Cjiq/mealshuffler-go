@@ -74,7 +74,7 @@ func (r *RecipeService) getRecipes(userID ...string) ([]*app.Recipe, error) {
 	}
 	defer rows.Close()
 
-	recepis := make([]*app.Recipe, 0)
+	recipes := make([]*app.Recipe, 0)
 	for rows.Next() {
 		var r app.Recipe
 		var leftOverCompliance sql.NullInt64
@@ -88,10 +88,10 @@ func (r *RecipeService) getRecipes(userID ...string) ([]*app.Recipe, error) {
 		if url.Valid {
 			r.URL = url.String
 		}
-		recepis = append(recepis, &r)
+		recipes = append(recipes, &r)
 	}
 
-	return recepis, nil
+	return recipes, nil
 
 }
 

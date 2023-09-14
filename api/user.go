@@ -610,6 +610,67 @@ func (uc *UserController) UpdateWeeks(c echo.Context) error {
 	return c.JSON(http.StatusOK, weeks)
 }
 
+func (uc *UserController) ShuffleWeekRecipes(c echo.Context) error {
+	user, err := getUser(uc, c)
+	if err != nil {
+		if strings.Contains(err.Error(), "failed to fetch user") {
+			httpErr := app.HTTPError{
+				Message: fmt.Sprintf("user with id %s not found", c.Param("id")),
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
+		httpErr := app.HTTPError{
+			Message: "failed to fetch user: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
+	week, err := uc.weekService.LastGeneratedWeek(user.ID.String())
+	if err != nil {
+		if strings.Contains(err.Error(), "week not found") {
+			httpErr := app.HTTPError{
+				Message: "no weeks found",
+				Code:    http.StatusNotFound,
+			}
+			return c.JSON(httpErr.Code, httpErr)
+		}
+		httpErr := app.HTTPError{
+			Message: "failed to fetch week: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
+
+	recipes := []*app.Recipe{}
+	for _, day := range week.Days {
+		recipes = append(recipes, day.Dinner)
+	}
+	shuffledRecipes := app.Shuffle(recipes)
+	for i, day := range week.Days {
+		day.Dinner = shuffledRecipes[i]
+	}
+	week, err = uc.weekService.UpdateWeek(week, user.ID.String())
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "failed to update week: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
+	nextWeekNumber, err := uc.weekService.NextWeekNumber(user.ID.String())
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "failed to fetch next week number: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
+	week.Number = nextWeekNumber
+
+	return c.JSON(http.StatusOK, week)
+}
+
 func getUser(uc *UserController, c echo.Context) (*app.User, error) {
 	fmt.Printf("%+v\n", c)
 	id := c.Param("id")
@@ -636,7 +697,9 @@ func validateNewWeeks(weeks []*app.NewWeek) []app.ValidationError {
 		if len(week.Days) == 0 {
 			err.Errors = append(err.Errors, "days need to be set")
 		}
-		errors = append(errors, err)
+		if len(err.Errors) > 0 {
+			errors = append(errors, err)
+		}
 	}
 
 	return errors
@@ -658,7 +721,9 @@ func validateWeeks(weeks []*app.Week) []app.ValidationError {
 		if len(week.Days) == 0 {
 			err.Errors = append(err.Errors, "days need to be set")
 		}
-		errors = append(errors, err)
+		if len(err.Errors) > 0 {
+			errors = append(errors, err)
+		}
 	}
 
 	return errors
