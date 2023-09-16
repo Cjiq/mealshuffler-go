@@ -271,6 +271,9 @@ func (uc *UserController) GenerateWeek(c echo.Context) error {
 		}
 		return c.JSON(httpErr.Code, httpErr)
 	}
+	if len(weeks) > 0 {
+		weeks[0].ID = week.ID
+	}
 	return c.JSON(http.StatusOK, weeks)
 }
 
@@ -626,18 +629,21 @@ func (uc *UserController) ShuffleWeekRecipes(c echo.Context) error {
 		}
 		return c.JSON(httpErr.Code, httpErr)
 	}
-	week, err := uc.weekService.LastGeneratedWeek(user.ID.String())
+	var week *app.Week
+	err = c.Bind(&week)
 	if err != nil {
-		if strings.Contains(err.Error(), "week not found") {
-			httpErr := app.HTTPError{
-				Message: "no weeks found",
-				Code:    http.StatusNotFound,
-			}
-			return c.JSON(httpErr.Code, httpErr)
-		}
 		httpErr := app.HTTPError{
-			Message: "failed to fetch week: " + err.Error(),
-			Code:    http.StatusInternalServerError,
+			Message: "failed to bind week: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
+	valdationErrors := validateWeeks([]*app.Week{week})
+	if len(valdationErrors) > 0 {
+		httpErr := app.HTTPError{
+			Message: "weeks validation failed",
+			Code:    http.StatusUnprocessableEntity,
+			Context: valdationErrors,
 		}
 		return c.JSON(httpErr.Code, httpErr)
 	}
@@ -650,6 +656,8 @@ func (uc *UserController) ShuffleWeekRecipes(c echo.Context) error {
 	for i, day := range week.Days {
 		day.Dinner = shuffledRecipes[i]
 	}
+	weekNum := week.Number
+	week.Number = -1
 	week, err = uc.weekService.UpdateWeek(week, user.ID.String())
 	if err != nil {
 		httpErr := app.HTTPError{
@@ -658,15 +666,7 @@ func (uc *UserController) ShuffleWeekRecipes(c echo.Context) error {
 		}
 		return c.JSON(httpErr.Code, httpErr)
 	}
-	nextWeekNumber, err := uc.weekService.NextWeekNumber(user.ID.String())
-	if err != nil {
-		httpErr := app.HTTPError{
-			Message: "failed to fetch next week number: " + err.Error(),
-			Code:    http.StatusInternalServerError,
-		}
-		return c.JSON(httpErr.Code, httpErr)
-	}
-	week.Number = nextWeekNumber
+	week.Number = weekNum
 
 	return c.JSON(http.StatusOK, week)
 }

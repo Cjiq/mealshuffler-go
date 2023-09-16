@@ -152,7 +152,7 @@ func (ws *WeekService) UpdateWeek(week *app.Week, userID string) (*app.Week, err
 	rowsAffected, err := res.RowsAffected()
 	if err != nil || rowsAffected == 0 {
 		tx.Rollback()
-		return nil, fmt.Errorf("week not found")
+		return nil, fmt.Errorf("week not found: got %d rows affected", rowsAffected)
 	}
 	err = tx.Commit()
 	if err != nil {
