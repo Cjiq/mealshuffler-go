@@ -77,13 +77,15 @@ func (r *RecipeService) getRecipes(userID ...string) ([]*app.Recipe, error) {
 	recipes := make([]*app.Recipe, 0)
 	for rows.Next() {
 		var r app.Recipe
-		var leftOverCompliance sql.NullInt64
+		var leftOverCompliance sql.NullBool
 		var url sql.NullString
 		if err := rows.Scan(&r.ID, &r.Name, &r.ProbabilityWeight, &r.Portions, &leftOverCompliance, &url); err != nil {
 			return nil, err
 		}
-		if leftOverCompliance.Valid && leftOverCompliance.Int64 > 0 {
-			r.LeftOverCompliance = true
+		if leftOverCompliance.Valid {
+			r.LeftOverCompliance = leftOverCompliance.Bool
+		} else {
+			r.LeftOverCompliance = false
 		}
 		if url.Valid {
 			r.URL = url.String
@@ -130,9 +132,10 @@ func (r *RecipeService) CreateRecipe(newRecipe *app.NewRecipe, userID string) (*
 			ID: id,
 		},
 		NewRecipe: app.NewRecipe{
-			Name:              newRecipe.Name,
-			Portions:          newRecipe.Portions,
-			ProbabilityWeight: newRecipe.ProbabilityWeight,
+			Name:               newRecipe.Name,
+			Portions:           newRecipe.Portions,
+			ProbabilityWeight:  newRecipe.ProbabilityWeight,
+			LeftOverCompliance: newRecipe.LeftOverCompliance,
 		},
 	}
 	tx.Commit()

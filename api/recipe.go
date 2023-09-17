@@ -27,6 +27,17 @@ func (rc *RecipeController) GetRecipes(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, recipes)
 }
+func (rc *RecipeController) GetUserRecipes(c echo.Context) error {
+	recipes, err := rc.recipeService.UserRecipes(c.Param("id"))
+	if err != nil {
+		httpErr := app.HTTPError{
+			Message: "Error: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		}
+		return c.JSON(httpErr.Code, httpErr)
+	}
+	return c.JSON(http.StatusOK, recipes)
+}
 
 func (rc *RecipeController) CreateRecipe(c echo.Context) error {
 	var newRecipe app.NewRecipe

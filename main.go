@@ -54,11 +54,19 @@ func main() {
 				panic(r)
 			}
 		}()
+
+		resErr, ok := err.(app.HTTPError)
+		if ok {
+			c.JSON(resErr.Code, resErr)
+			return
+		}
+
 		httpErr := app.HTTPError{
 			Message: err.Error(),
-			Code:    err.(*echo.HTTPError).Code,
+			Code:    http.StatusInternalServerError,
 		}
-		c.JSON(http.StatusInternalServerError, httpErr)
+
+		c.JSON(httpErr.Code, httpErr)
 	}
 
 	db, err := sqlite.NewDB()
@@ -92,10 +100,10 @@ func main() {
 		},
 		ErrorHandler: func(err error, _ echo.Context) error {
 			httpErr := app.HTTPError{
-				Message: err.Error(),
+				Message: fmt.Sprintf("access denied: %s", err.Error()),
 				Code:    http.StatusUnauthorized,
 			}
-			return echo.NewHTTPError(http.StatusUnauthorized, httpErr)
+			return httpErr
 		},
 	}))
 
@@ -110,6 +118,8 @@ func main() {
 	api.PUT("/users/:id/weeks", userController.UpdateWeeks)
 	api.PUT("/users/:id/weeks/shuffle", userController.ShuffleWeekRecipes)
 	api.POST("/users/:id/recipes", recipeController.CreateRecipe)
+
+	api.GET("/users/:id/recipes", recipeController.GetUserRecipes)
 
 	api.GET("/recipes", recipeController.GetRecipes)
 	api.DELETE("/recipes", recipeController.DeleteRecipes)
@@ -160,7 +170,7 @@ func (s *server) login(c echo.Context) error {
 	if err != nil {
 		httpErr := app.HTTPError{
 			Message: "invalid username or password",
-			Code:    http.StatusUnauthorized,
+			Code:    http.StatusBadRequest,
 		}
 		return c.JSON(http.StatusUnauthorized, httpErr)
 	}
@@ -237,7 +247,6 @@ func (s *server) AdminMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		token := c.Request().Header.Get("Authorization")
 		token = strings.TrimPrefix(token, "Bearer ")
 		adminToken, err := s.userService.GetUserToken("cjiq")
-		fmt.Printf("%s == %s", token, adminToken)
 		if err != nil {
 			httpErr := app.HTTPError{
 				Message: err.Error(),
@@ -249,7 +258,6 @@ func (s *server) AdminMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		if token != adminToken {
 			return c.String(http.StatusUnauthorized, "Unauthorized")
 		}
-		fmt.Println("==== ADMIN ACCESS ====")
 		return next(c)
 	}
 }

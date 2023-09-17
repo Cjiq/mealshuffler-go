@@ -1,6 +1,8 @@
 package app
 
 import (
+	"encoding/json"
+	"log"
 	"math"
 	"time"
 
@@ -31,7 +33,7 @@ type NewRecipe struct {
 	ProbabilityWeight  float64 `json:"probability_weight,omitempty"`
 	Portions           int     `json:"portions,omitempty"`
 	URL                string  `json:"url,omitempty"`
-	LeftOverCompliance bool    `json:"left_over_compliance,omitempty"`
+	LeftOverCompliance bool    `json:"left_over_compliance"`
 }
 
 type Recipe struct {
@@ -68,6 +70,14 @@ type HTTPError struct {
 	Message string `json:"message,omitempty"`
 	Code    int    `json:"code,omitempty"`
 	Context any    `json:"context,omitempty"`
+}
+
+func (e HTTPError) Error() string {
+	json, err := json.Marshal(e)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(json)
 }
 
 type ValidationError struct {
