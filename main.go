@@ -16,6 +16,7 @@ import (
 	"nrdev.se/mealshuffler/api"
 	"nrdev.se/mealshuffler/app"
 	"nrdev.se/mealshuffler/sqlite"
+	"nrdev.se/mealshuffler/web"
 )
 
 type server struct {
@@ -87,6 +88,15 @@ func main() {
 		userService: userService,
 	}
 	e.POST("/login", srv.login)
+
+	e.Static("/assets", "public/assets")
+
+	e.GET("/", func(c echo.Context) error {
+		return web.Index(c, userService)
+	})
+	e.GET("/login", func(c echo.Context) error {
+		return web.LoginIndex(c, userService)
+	})
 
 	api := e.Group("/api")
 	api.Use(middleware.KeyAuthWithConfig(middleware.KeyAuthConfig{

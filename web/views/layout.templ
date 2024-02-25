@@ -1,0 +1,19 @@
+package views
+
+templ Layout(children templ.Component) {
+	<!DOCTYPE html>
+	<html>
+		<head>
+			<title>Mealshuffler</title>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<script src="/assets/css/tailwind.css"></script>
+      <script src="/assets/js/htmx.min.js"></script>
+      <script src="/assets/js/json-enc.js"></script>
+			// <link rel="stylesheet" href="https://unpkg.com/@material-tailwind/html@latest/styles/material-tailwind.css" />
+		</head>
+		<body>
+			@children
+		</body>
+	</html>
+}

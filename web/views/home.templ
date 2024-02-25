@@ -1,0 +1,19 @@
+package views
+
+import "nrdev.se/mealshuffler/app"
+
+templ Home(name string, users []*app.User) {
+	<div class="flex flex-col min-h-screen font-sans bg-sky-500">
+		<p class="text-3xl mx-auto py-2">Mealshuffler !!!</p>
+    <div>With some new stuff</div>
+		@ShowUsers(users)
+	</div>
+}
+
+templ ShowUsers(users []*app.User) {
+	<ul>
+		for _, user := range users {
+			<li>{ user.Name }</li>
+		}
+	</ul>
+}
