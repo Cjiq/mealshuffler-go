@@ -74,15 +74,17 @@ run/templ:
 ## run/live: run the application with reloading on file changes
 .PHONY: run/live
 run/live:
-	go run github.com/cosmtrek/air@v1.43.0 \
-		--build.cmd "make build" --build.bin "/tmp/bin/${BINARY_NAME}" --build.delay "100" \
-		--build.exclude_dir "" \
-		--build.include_ext "go, tpl, tmpl, templ, html, css, scss, js, ts, sql, jpeg, jpg, gif, png, bmp, svg, webp, ico" \
-		--misc.clean_on_exit "true"
-
-.PHONY: run/all
-run/all: run/live run/templ
-
+	wgo -file=.go -file=.templ -xfile=_templ.go templ generate :: go run main.go & \
+	browser-sync start \
+  --files './**/*.go, ./**/*.templ' \
+  --ignore '*_templ.go' \
+  --port 8081 \
+  --proxy 'localhost:8080' \
+	--reloadThrottle 50 \
+  --middleware 'function(req, res, next) { \
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate"); \
+    return next(); \
+  }'
 
 # ==================================================================================== #
 # OPERATIONS

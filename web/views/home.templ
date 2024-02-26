@@ -3,11 +3,12 @@ package views
 import "nrdev.se/mealshuffler/app"
 
 templ Home(name string, users []*app.User) {
+  <body>
 	<div class="flex flex-col min-h-screen font-sans bg-sky-500">
 		<p class="text-3xl mx-auto py-2">Mealshuffler !!!</p>
-    <div>With some new stuff</div>
 		@ShowUsers(users)
 	</div>
+  </body>
 }
 
 templ ShowUsers(users []*app.User) {
