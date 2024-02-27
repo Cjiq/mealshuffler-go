@@ -6,6 +6,7 @@ templ Home(name string, users []*app.User) {
   <body>
 	<div class="flex flex-col min-h-screen font-sans bg-sky-500">
 		<p class="text-3xl mx-auto py-2">Mealshuffler !!!</p>
+    <a href="/login/undo">Logout</a>
 		@ShowUsers(users)
 	</div>
   </body>

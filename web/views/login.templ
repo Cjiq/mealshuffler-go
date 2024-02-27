@@ -1,5 +1,12 @@
 package views
 
+import "strconv"
+
+templ Errors(err string, code int) {
+  <span class="text-red">Code: {strconv.Itoa(code)}</span>
+  <span class="text-red">{err}</span>
+}
+
 templ Login() {
 	<div class="grid h-screen place-items-center">
 		<form hx-ext="json-enc" class="w-96 mx-auto">
@@ -72,14 +79,16 @@ templ Login() {
 				</div>
 				<div class="p-6 pt-0">
 					<button
-            hx-post="/login"
+            hx-post="/login/do"
             type="submit"
-            hx-swap="none"
+            hx-swap="innerHTML"
+            hx-target="#errors"
 						class="block w-full select-none rounded-lg bg-gradient-to-tr bg-green-600 py-3 px-6 text-center align-middle font-sans text-xs font-bold uppercase text-white shadow-md shadow-gray-900/10 transition-all hover:shadow-lg hover:shadow-gray-900/20 active:opacity-[0.85] disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none"
 						type="button"
 					>
 						Sign In
 					</button>
+        <div id="errors" class="mt-2"></div>
 				</div>
 			</div>
 		</form>

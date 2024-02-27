@@ -25,7 +25,7 @@ func Home(name string, users []*app.User) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<body><div class=\"flex flex-col min-h-screen font-sans bg-sky-500\"><p class=\"text-3xl mx-auto py-2\">Mealshuffler !!!</p>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<body><div class=\"flex flex-col min-h-screen font-sans bg-sky-500\"><p class=\"text-3xl mx-auto py-2\">Mealshuffler !!!</p><a href=\"/login/undo\">Logout</a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -69,7 +69,7 @@ func ShowUsers(users []*app.User) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(user.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/views/home.templ`, Line: 16, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/views/home.templ`, Line: 17, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {

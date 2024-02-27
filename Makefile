@@ -74,7 +74,7 @@ run/templ:
 ## run/live: run the application with reloading on file changes
 .PHONY: run/live
 run/live:
-	wgo -file=.go -file=.templ -xfile=_templ.go templ generate :: go run main.go & \
+	wgo -file=.go -file=.templ -xfile=_templ.go templ generate :: go run . & \
 	browser-sync start \
   --files './**/*.go, ./**/*.templ' \
   --ignore '*_templ.go' \
