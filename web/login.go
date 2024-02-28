@@ -29,27 +29,30 @@ func (handler *LoginHandler) Do(c echo.Context) error {
 	var u user
 	if err := c.Bind(&u); err != nil {
 		httpErr := app.HTTPError{
-			Message: err.Error(),
-			Code:    http.StatusBadRequest,
+			Message:  err.Error(),
+			Friendly: "Failed to parse request",
+			Code:     http.StatusBadRequest,
 		}
-		return Render(c, views.Errors(httpErr.Message, httpErr.Code))
+		return Render(c, views.Errors(httpErr))
 	}
 
 	userHash, err := handler.UserService.GetUserHash(u.Username)
 	if err != nil {
 		httpErr := app.HTTPError{
-			Message: err.Error(),
-			Code:    http.StatusInternalServerError,
+			Message:  err.Error(),
+			Friendly: "invalid username or password",
+			Code:     http.StatusInternalServerError,
 		}
-		return Render(c, views.Errors(httpErr.Message, httpErr.Code))
+		return Render(c, views.Errors(httpErr))
 	}
 	err = bcrypt.CompareHashAndPassword(userHash, []byte(u.Password))
 	if err != nil {
 		httpErr := app.HTTPError{
-			Message: "invalid username or password",
-			Code:    http.StatusBadRequest,
+			Message:  "invalid username or password",
+			Friendly: "invalid username or password",
+			Code:     http.StatusBadRequest,
 		}
-		return Render(c, views.Errors(httpErr.Message, httpErr.Code))
+		return Render(c, views.Errors(httpErr))
 	}
 	sess, err := session.Get("auth-session", c)
 	if err != nil {
@@ -57,7 +60,7 @@ func (handler *LoginHandler) Do(c echo.Context) error {
 			Message: err.Error(),
 			Code:    http.StatusInternalServerError,
 		}
-		return Render(c, views.Errors(httpErr.Message, httpErr.Code))
+		return Render(c, views.Errors(httpErr))
 	}
 	sess.Options = &sessions.Options{
 		Path:     "/",
@@ -77,7 +80,7 @@ func (handler *LoginHandler) Undo(c echo.Context) error {
 			Message: err.Error(),
 			Code:    http.StatusInternalServerError,
 		}
-		return Render(c, views.Errors(httpErr.Message, httpErr.Code))
+		return Render(c, views.Errors(httpErr))
 	}
 	sess.Options = &sessions.Options{
 		Path:     "/",

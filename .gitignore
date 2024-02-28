@@ -3,4 +3,5 @@ tmp/
 .idea
 mealshuffler.db
 mealshuffler
+node_modules
 

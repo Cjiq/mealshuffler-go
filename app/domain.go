@@ -67,9 +67,10 @@ type Day struct {
 }
 
 type HTTPError struct {
-	Message string `json:"message,omitempty"`
-	Code    int    `json:"code,omitempty"`
-	Context any    `json:"context,omitempty"`
+	Message  string `json:"message,omitempty"`
+	Friendly string `json:"friendly,omitempty"`
+	Code     int    `json:"code,omitempty"`
+	Context  any    `json:"context,omitempty"`
 }
 
 func (e HTTPError) Error() string {

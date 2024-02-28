@@ -84,7 +84,8 @@ run/live:
   --middleware 'function(req, res, next) { \
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate"); \
     return next(); \
-  }'
+  }' & \
+	npx tailwindcss -i ./css/input.css -o ./public/assets/css/styles.css --watch
 
 # ==================================================================================== #
 # OPERATIONS
